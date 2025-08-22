@@ -1,6 +1,6 @@
 {
-  "name": "kafka-accessor",
-  "version": "0.0.1",
+  "name": "kafka-accessor-cli",
+  "version": "0.0.2",
   "description": "Kafka producer and consumer service with message processing capabilities",
   "main": "index.js",
   "bin": {
@@ -44,5 +44,13 @@
     "config/",
     "index.js",
     "README.md"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/easynet-world/7132-kafka-accessor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/easynet-world/7132-kafka-accessor/issues"
+  },
+  "homepage": "https://github.com/easynet-world/7132-kafka-accessor#readme"
 }
