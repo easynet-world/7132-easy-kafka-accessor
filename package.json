@@ -1,31 +1,28 @@
 {
-  "name": "kafka-accessor-cli",
-  "version": "0.0.2",
+  "name": "kafka-data-accessor",
+  "version": "0.0.1",
   "description": "Kafka producer and consumer service with message processing capabilities",
   "main": "index.js",
   "bin": {
-    "kafka-accessor": "./index.js"
+    "kafka-data-accessor": "index.js"
   },
   "scripts": {
-    "start": "node index.js",
-    "start:producer": "node index.js producer",
-    "start:consumer": "node index.js consumer",
-    "start:both": "node index.js both",
     "test": "jest",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix"
+    "lint": "eslint src/ processors/",
+    "lint:fix": "eslint src/ processors/ --fix"
   },
   "keywords": [
     "kafka",
     "producer",
     "consumer",
     "message-processing",
-    "rpm"
+    "nodejs",
+    "streaming",
+    "messaging"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "commander": "^11.1.0",
     "dotenv": "^16.3.1",
     "kafkajs": "^2.2.4",
     "winston": "^3.11.0"
@@ -41,16 +38,16 @@
   "files": [
     "src/",
     "processors/",
-    "config/",
     "index.js",
-    "README.md"
+    "README.md",
+    "env.example"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/easynet-world/7132-kafka-accessor.git"
+    "url": "git+https://github.com/easynet-world/7132-kafka-data-accessor.git"
   },
   "bugs": {
-    "url": "https://github.com/easynet-world/7132-kafka-accessor/issues"
+    "url": "https://github.com/easynet-world/7132-kafka-data-accessor/issues"
   },
-  "homepage": "https://github.com/easynet-world/7132-kafka-accessor#readme"
+  "homepage": "https://github.com/easynet-world/7132-kafka-data-accessor#readme"
 }

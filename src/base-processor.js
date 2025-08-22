@@ -47,11 +47,11 @@ class BaseProcessor {
 
   /**
    * Abstract method to be implemented by subclasses
-   * @param {Object} message - The Kafka message object
-   * @param {Object} metadata - Message metadata
+   * @param {Object} _message - The Kafka message object
+   * @param {Object} _metadata - Message metadata
    * @returns {Promise<Object>} Processing result
    */
-  async processMessage(message, metadata) {
+  async processMessage(_message, _metadata) {
     // Default implementation - return success
     return {
       status: 'success',

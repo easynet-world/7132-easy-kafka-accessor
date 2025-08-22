@@ -38,12 +38,12 @@ jspm_packages/
 .env.test
 .env.production
 .env.local
+.env.example
 
-# RPM build artifacts
-/rpmbuild/
+# Build artifacts
 *.tar.gz
-*.rpm
-*.src.rpm
+dist/
+build/
 
 # OS files
 .DS_Store
