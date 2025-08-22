@@ -1,6 +1,6 @@
 {
   "name": "kafka-data-accessor",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Kafka producer and consumer service with message processing capabilities",
   "main": "index.js",
   "bin": {
@@ -10,13 +10,15 @@
     "test": "jest",
     "lint": "eslint src/ processors/",
     "lint:fix": "eslint src/ processors/ --fix",
-    "version:patch": "npm version patch --no-git-tag-version",
-    "version:minor": "npm version minor --no-git-tag-version",
-    "version:major": "npm version major --no-git-tag-version",
-    "prepublishOnly": "npm test && npm run lint",
+    "version:patch": "version-bump patch --yes",
+    "version:minor": "version-bump minor --yes",
+    "version:major": "version-bump major --yes",
+    "version:auto": "version-bump auto --yes",
     "publish:patch": "npm run version:patch && npm publish",
     "publish:minor": "npm run version:minor && npm publish",
-    "publish:major": "npm run version:major && npm publish"
+    "publish:major": "npm run version:major && npm publish",
+    "publish:auto": "npm run version:auto && npm publish",
+    "publish:smart": "node scripts/publish.js"
   },
   "keywords": [
     "kafka",
@@ -35,6 +37,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "@jsdevtools/version-bump-prompt": "^6.1.0",
     "@types/node": "^20.10.0",
     "eslint": "^8.55.0",
     "jest": "^29.7.0"
@@ -47,8 +50,7 @@
     "processors/",
     "index.js",
     "README.md",
-    "env.example",
-    "scripts/"
+    "env.example"
   ],
   "repository": {
     "type": "git",
