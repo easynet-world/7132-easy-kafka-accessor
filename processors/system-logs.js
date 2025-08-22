@@ -3,9 +3,9 @@
  * Simple processor that prints out system-level Kafka messages
  */
 
-const MessageProcessor = require('../src/message-processor');
+const KafkaTopicProcessor = require('../src/kafka-topic-processor');
 
-class SystemLogsProcessor extends MessageProcessor {
+class SystemLogsProcessor extends KafkaTopicProcessor {
   /**
    * Process system-level messages - simply print them out
    * @param {Object} message - The Kafka message object (JSON)
