@@ -6,14 +6,14 @@
  */
 
 const KafkaAccessor = require('./src/kafka-accessor');
-const BaseProcessor = require('./src/base-processor');
+const MessageProcessor = require('./src/message-processor');
 const ProcessorRegistry = require('./src/processor-registry');
 const SystemLogsProcessor = require('./processors/system-logs');
 
 // Export the main classes
 module.exports = {
   KafkaAccessor,
-  BaseProcessor,
+  MessageProcessor,
   ProcessorRegistry,
   SystemLogsProcessor
 };
