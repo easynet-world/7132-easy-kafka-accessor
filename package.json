@@ -1,6 +1,6 @@
 {
   "name": "kafka-accessor",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Kafka producer and consumer service with message processing capabilities",
   "main": "index.js",
   "bin": {

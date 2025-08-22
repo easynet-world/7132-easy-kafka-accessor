@@ -40,7 +40,7 @@ A scalable, production-ready Kafka accessor built with Node.js, packaged as an R
 ### Install and Run
 ```bash
 # Install the RPM package
-sudo dnf install kafka-accessor-1.0.0-1.noarch.rpm
+sudo dnf install kafka-accessor-0.0.1-1.noarch.rpm
 
 # Start consumer service
 sudo systemctl enable --now kafka-accessor-consumer
@@ -68,7 +68,7 @@ node -e "const p = require('/usr/share/kafka-accessor/processors/system-logs'); 
 
 ```bash
 # Install the RPM package
-sudo dnf install kafka-accessor-1.0.0-1.noarch.rpm
+sudo dnf install kafka-accessor-0.0.1-1.noarch.rpm
 
 # Or using rpm command
 sudo rpm -ivh kafka-accessor-1.0.0-1.noarch.rpm

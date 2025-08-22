@@ -1,5 +1,5 @@
 NAME = kafka-accessor
-VERSION = 1.0.0
+VERSION = 0.0.1
 RELEASE = 1
 
 # RPM build directories
@@ -34,16 +34,14 @@ prepare-rpm:
 	
 	# Create source tarball
 	@echo "Creating source tarball..."
-	tar --exclude='.git' \
-		--exclude='node_modules' \
-		--exclude='tests' \
-		--exclude='.gitignore' \
-		--exclude='jest.config.js' \
-		--exclude='*.spec' \
-		--exclude='Makefile' \
-		--exclude='scripts' \
-		--transform 's,^,$(NAME)-$(VERSION)/,' \
-		-czf $(SOURCES_DIR)/$(NAME)-$(VERSION).tar.gz .
+	# Create a temporary directory for the source
+	mkdir -p /tmp/$(NAME)-$(VERSION)
+	# Copy files to temp directory
+	cp -r src processors config index.js package.json README.md /tmp/$(NAME)-$(VERSION)/
+	# Create tarball
+	cd /tmp && tar -czf $(SOURCES_DIR)/$(NAME)-$(VERSION).tar.gz $(NAME)-$(VERSION)
+	# Clean up
+	rm -rf /tmp/$(NAME)-$(VERSION)
 	
 	# Copy spec file
 	cp $(NAME).spec $(SPECS_DIR)/
