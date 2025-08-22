@@ -1,0 +1,90 @@
+name: Publish to NPM
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'  # Exclude version bump commits
+
+env:
+  NODE_VERSION: '18'
+  NPM_REGISTRY: 'https://registry.npmjs.org/'
+
+jobs:
+  publish:
+    name: Publish Package to NPM
+    runs-on: self-hosted  # Use self-hosted runner
+    environment: production  # Optional: for environment protection rules
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git operations
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: ${{ env.NPM_REGISTRY }}
+          cache: 'npm'
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Determine version bump type
+        id: version-type
+        run: |
+          # Check if this is a major release (contains breaking changes)
+          if git log --oneline HEAD~10..HEAD | grep -q "BREAKING CHANGE\|major\|breaking"; then
+            echo "type=major" >> $GITHUB_OUTPUT
+          # Check if this is a minor release (new features)
+          elif git log --oneline HEAD~10..HEAD | grep -q "feat\|feature\|minor"; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+          # Default to patch for bug fixes and other changes
+          else
+            echo "type=patch" >> $GITHUB_OUTPUT
+          fi
+          echo "Version bump type: ${{ steps.version-type.outputs.type }}"
+      
+      - name: Run publish script
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_TYPE: ${{ steps.version-type.outputs.type }}
+          NPM_REGISTRY: ${{ env.NPM_REGISTRY }}
+        run: |
+          echo "Publishing with version type: $VERSION_TYPE"
+          ./scripts/publish.sh
+      
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version-type.outputs.version }}
+          release_name: Release v${{ steps.version-type.outputs.version }}
+          body: |
+            ## What's Changed
+            
+            This release includes:
+            - Automated version bump to ${{ steps.version-type.outputs.version }}
+            - All tests passing
+            - Code quality improvements
+            
+            ## Installation
+            
+            ```bash
+            npm install kafka-data-accessor@${{ steps.version-type.outputs.version }}
+            ```
+            
+            ## Changelog
+            
+            See the [commit history](https://github.com/${{ github.repository }}/commits/v${{ steps.version-type.outputs.version }}) for detailed changes.
+          draft: false
+          prerelease: false
+        if: success()

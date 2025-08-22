@@ -1,0 +1,82 @@
+name: Publish to NPM (Simple)
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/**'
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  publish:
+    name: Publish Package to NPM
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test
+      
+      - name: Run linting
+        run: npm run lint
+      
+      - name: Bump version and publish
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Determine version bump type based on commit messages
+          if git log --oneline HEAD~5..HEAD | grep -q "BREAKING CHANGE\|major\|breaking"; then
+            VERSION_TYPE="major"
+          elif git log --oneline HEAD~5..HEAD | grep -q "feat\|feature\|minor"; then
+            VERSION_TYPE="minor"
+          else
+            VERSION_TYPE="patch"
+          fi
+          
+          echo "Bumping version: $VERSION_TYPE"
+          
+          # Bump version
+          npm version $VERSION_TYPE --no-git-tag-version
+          
+          # Get new version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "New version: $NEW_VERSION"
+          
+          # Publish to npm
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
+          npm publish --access public
+          
+          # Commit and tag
+          git add package.json
+          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+          git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+          
+          # Push changes and tags
+          git push origin HEAD
+          git push --tags
+          
+          echo "Successfully published version $NEW_VERSION"

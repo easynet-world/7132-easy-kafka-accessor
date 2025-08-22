@@ -9,7 +9,14 @@
   "scripts": {
     "test": "jest",
     "lint": "eslint src/ processors/",
-    "lint:fix": "eslint src/ processors/ --fix"
+    "lint:fix": "eslint src/ processors/ --fix",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
+    "prepublishOnly": "npm test && npm run lint",
+    "publish:patch": "npm run version:patch && npm publish",
+    "publish:minor": "npm run version:minor && npm publish",
+    "publish:major": "npm run version:major && npm publish"
   },
   "keywords": [
     "kafka",
@@ -40,7 +47,8 @@
     "processors/",
     "index.js",
     "README.md",
-    "env.example"
+    "env.example",
+    "scripts/"
   ],
   "repository": {
     "type": "git",
