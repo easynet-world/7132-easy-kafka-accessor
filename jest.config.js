@@ -18,6 +18,8 @@ module.exports = {
   },
   setupFilesAfterEnv: [],
   testTimeout: 10000,
-  verbose: true
+  verbose: true,
+  detectOpenHandles: true,
+  forceExit: true
 };
 

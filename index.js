@@ -21,7 +21,7 @@ module.exports = {
 // If run directly, show usage
 if (require.main === module) {
   console.log(`
-🚀 Kafka Data Accessor - Simple Kafka Library
+Kafka Data Accessor - Simple Kafka Library
 
 Usage:
   const { KafkaAccessor } = require('kafka-data-accessor');

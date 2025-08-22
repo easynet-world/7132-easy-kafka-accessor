@@ -13,16 +13,16 @@ class SystemLogsProcessor extends BaseProcessor {
    * @returns {Promise<Object>} Processing result
    */
   async processMessage(message, metadata) {
-    // Simply print out the message
-    console.log('📋 System Log Message:');
-    console.log('  Topic:', metadata.topic);
-    console.log('  Partition:', metadata.partition);
-    console.log('  Offset:', metadata.offset);
-    console.log('  Message:', JSON.stringify(message, null, 2));
-    console.log('---');
+    // Log the system message using the inherited logger
+    this.logger.info('System Log Message', {
+      topic: metadata.topic,
+      partition: metadata.partition,
+      offset: metadata.offset,
+      message: JSON.stringify(message, null, 2)
+    });
     
     // Return success result
-    return this.createSuccessResult('System log message printed successfully');
+    return this.createSuccessResult('System log message logged successfully');
   }
 }
 
