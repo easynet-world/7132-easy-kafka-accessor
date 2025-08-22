@@ -1,11 +1,11 @@
 /**
- * Base Processor Class
+ * Kafka Topic Processor Class
  * All Kafka topic processors should extend this class
  */
 
 const winston = require('winston');
 
-class BaseProcessor {
+class KafkaTopicProcessor {
   constructor(topic) {
     this.topic = topic;
     
@@ -17,7 +17,7 @@ class BaseProcessor {
         winston.format.errors({ stack: true }),
         winston.format.json()
       ),
-      defaultMeta: { service: 'base-processor', topic },
+      defaultMeta: { service: 'kafka-topic-processor', topic },
       transports: [
         new winston.transports.Console({
           format: winston.format.simple()
@@ -107,7 +107,7 @@ class BaseProcessor {
    * Create error result
    * @param {string} error - Error message
    * @param {Object} additionalData - Additional data to include
-   * @returns {Object} Error result
+   * @returns {Object} Success result
    */
   createErrorResult(error, additionalData = {}) {
     return {
@@ -118,4 +118,4 @@ class BaseProcessor {
   }
 }
 
-module.exports = BaseProcessor;
+module.exports = KafkaTopicProcessor;
