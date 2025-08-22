@@ -1,0 +1,48 @@
+{
+  "name": "kafka-accessor",
+  "version": "1.0.0",
+  "description": "Kafka producer and consumer service with message processing capabilities",
+  "main": "index.js",
+  "bin": {
+    "kafka-accessor": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "start:producer": "node index.js producer",
+    "start:consumer": "node index.js consumer",
+    "start:both": "node index.js both",
+    "test": "jest",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix"
+  },
+  "keywords": [
+    "kafka",
+    "producer",
+    "consumer",
+    "message-processing",
+    "rpm"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.1",
+    "kafkajs": "^2.2.4",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "eslint": "^8.55.0",
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "src/",
+    "processors/",
+    "config/",
+    "index.js",
+    "README.md"
+  ]
+}
