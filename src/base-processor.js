@@ -1,47 +1,64 @@
 /**
  * Base Processor Class
- * Provides common functionality for all Kafka message processors
+ * All Kafka topic processors should extend this class
  */
 
+const winston = require('winston');
+
 class BaseProcessor {
+  constructor(topic) {
+    this.topic = topic;
+    
+    // Initialize logger
+    this.logger = winston.createLogger({
+      level: process.env.LOG_LEVEL || 'info',
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true }),
+        winston.format.json()
+      ),
+      defaultMeta: { service: 'base-processor', topic },
+      transports: [
+        new winston.transports.Console({
+          format: winston.format.simple()
+        })
+      ]
+    });
+  }
+
   /**
-   * Common process method - handles logging, error handling, and result structure
-   * @param {string} topic - The Kafka topic name
-   * @param {Object} message - The Kafka message object (JSON)
-   * @param {Object} metadata - Message metadata (topic, partition, offset, etc.)
+   * Process a message from a Kafka topic
+   * @param {string} topic - The topic name
+   * @param {Object} message - The message content
+   * @param {Object} metadata - Message metadata (partition, offset, etc.)
    * @returns {Promise<Object>} Processing result
    */
   async process(topic, message, metadata) {
     try {
-      // Log the message and metadata at the beginning
-      console.log(`📥 Received message for topic "${topic}":`, JSON.stringify(message, null, 2));
-      console.log('📋 Message metadata:', JSON.stringify(metadata, null, 2));
+      this.logger.info('Received message for topic', { 
+        topic, 
+        message: JSON.stringify(message, null, 2) 
+      });
+      this.logger.debug('Message metadata', { metadata: JSON.stringify(metadata, null, 2) });
       
-      // Call the specific processor implementation
+      // Call the actual message processing logic
       const result = await this.processMessage(message, metadata);
       
-      // Ensure result has the correct structure
-      if (!result || typeof result !== 'object') {
-        return {
-          status: 'success',
-          message: `Message for topic "${topic}" processed successfully`
-        };
-      }
+      // Log success
+      this.logger.info('Message processed successfully', { 
+        topic, 
+        result: JSON.stringify(result, null, 2) 
+      });
       
-      // If result doesn't have status, add it
-      if (!result.status) {
-        result.status = 'success';
-      }
-      
-      console.log(`✅ Message for topic "${topic}" processed successfully:`, result);
-      return result;
-      
+      return this.createSuccessResult(result);
     } catch (error) {
-      console.error(`❌ Error processing message for topic "${topic}":`, error.message);
-      return { 
-        status: 'error',
-        message: error.message
-      };
+      // Log error
+      this.logger.error('Error processing message for topic', { 
+        topic, 
+        error: error.message 
+      });
+      
+      return this.createErrorResult(error.message);
     }
   }
 

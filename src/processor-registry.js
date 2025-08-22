@@ -7,6 +7,7 @@
 const EventEmitter = require('events');
 const fs = require('fs');
 const path = require('path');
+const winston = require('winston');
 
 class ProcessorRegistry extends EventEmitter {
   constructor(options = {}) {
@@ -17,6 +18,22 @@ class ProcessorRegistry extends EventEmitter {
     this.autoRefresh = options.autoRefresh !== false; // Default to true
     this.refreshInterval = options.refreshInterval || 5000; // 5 seconds
     this.fileExtensions = options.fileExtensions || ['.js'];
+    
+    // Initialize logger
+    this.logger = winston.createLogger({
+      level: process.env.LOG_LEVEL || 'info',
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true }),
+        winston.format.json()
+      ),
+      defaultMeta: { service: 'processor-registry' },
+      transports: [
+        new winston.transports.Console({
+          format: winston.format.simple()
+        })
+      ]
+    });
     
     // Internal state
     this.processors = new Map();
@@ -52,11 +69,11 @@ class ProcessorRegistry extends EventEmitter {
       try {
         await this.refreshProcessors();
       } catch (error) {
-        console.error('❌ Auto-refresh error:', error.message);
+        this.logger.error('Auto-refresh error', { error: error.message });
       }
     }, this.refreshInterval);
     
-    console.log(`🔄 Auto-refresh started for processors directory: ${this.processorsDir}`);
+    this.logger.info('Auto-refresh started', { processorsDir: this.processorsDir });
   }
 
   /**
@@ -73,7 +90,7 @@ class ProcessorRegistry extends EventEmitter {
       this.watcher = null;
     }
     
-    console.log('⏹️ Auto-refresh stopped');
+    this.logger.info('Auto-refresh stopped');
   }
 
   /**
@@ -82,7 +99,7 @@ class ProcessorRegistry extends EventEmitter {
    */
   setProcessorsDirectory(dir) {
     this.processorsDir = dir;
-    console.log(`📁 Processors directory changed to: ${dir}`);
+    this.logger.info('Processors directory changed', { newDir: dir });
     
     // Refresh processors from new directory
     if (this.autoRefresh) {
@@ -105,7 +122,7 @@ class ProcessorRegistry extends EventEmitter {
   scanProcessorFiles() {
     try {
       if (!fs.existsSync(this.processorsDir)) {
-        console.warn(`⚠️ Processors directory does not exist: ${this.processorsDir}`);
+        this.logger.warn('Processors directory does not exist', { dir: this.processorsDir });
         return [];
       }
       
@@ -118,7 +135,7 @@ class ProcessorRegistry extends EventEmitter {
       
       return files;
     } catch (error) {
-      console.error(`❌ Error scanning processors directory: ${error.message}`);
+      this.logger.error('Error scanning processors directory', { error: error.message });
       return [];
     }
   }
@@ -145,10 +162,10 @@ class ProcessorRegistry extends EventEmitter {
         return processorModule;
       }
       
-      console.warn(`⚠️ Invalid processor in file: ${filePath}`);
+      this.logger.warn('Invalid processor in file', { filePath });
       return null;
     } catch (error) {
-      console.error(`❌ Error loading processor from ${filePath}: ${error.message}`);
+      this.logger.error('Error loading processor from file', { filePath, error: error.message });
       return null;
     }
   }
@@ -164,17 +181,17 @@ class ProcessorRegistry extends EventEmitter {
     const discoveredProcessors = [];
     const errors = [];
     
-    console.log(`🔍 Scanning processors directory: ${this.processorsDir}`);
+    this.logger.info('Scanning processors directory', { dir: this.processorsDir });
     
     // First, get available Kafka topics if kafkaAccessor is provided
     let availableTopics = [];
     if (kafkaAccessor && kafkaAccessor.admin) {
       try {
-        console.log('📡 Scanning Kafka topics...');
+        this.logger.info('Scanning Kafka topics...');
         availableTopics = await kafkaAccessor.admin.listTopics();
-        console.log(`✅ Found ${availableTopics.length} Kafka topics:`, availableTopics);
+        this.logger.info('Found Kafka topics', { count: availableTopics.length });
       } catch (error) {
-        console.warn(`⚠️ Could not scan Kafka topics: ${error.message}`);
+        this.logger.warn('Could not scan Kafka topics', { error: error.message });
         // Fall back to scanning processor files without topic validation
         availableTopics = null;
       }
@@ -195,13 +212,13 @@ class ProcessorRegistry extends EventEmitter {
             continue; // File hasn't changed
           }
         } catch (error) {
-          console.warn(`⚠️ Could not check file modification time: ${filePath}`);
+          this.logger.warn('Could not check file modification time', { filePath });
         }
       }
       
       // Only register processor if topic exists in Kafka (if we have topic list)
       if (availableTopics !== null && !availableTopics.includes(fileName)) {
-        console.log(`⏭️ Skipping processor ${fileName}.js - topic '${fileName}' not found in Kafka`);
+        this.logger.info('Skipping processor', { fileName, reason: 'topic not found in Kafka' });
         continue;
       }
       
@@ -228,11 +245,11 @@ class ProcessorRegistry extends EventEmitter {
                 size: stats.size
               });
             } catch (error) {
-              console.warn(`⚠️ Could not track file info: ${filePath}`);
+              this.logger.warn('Could not track file info', { filePath });
             }
             
             discoveredProcessors.push({ topic, filePath, result });
-            console.log(`✅ Registered processor for topic: ${topic}`);
+            this.logger.info('Registered processor for topic', { topic });
           }
         } catch (error) {
           errors.push({ filePath, error: error.message });
@@ -247,7 +264,7 @@ class ProcessorRegistry extends EventEmitter {
       if (processorInfo && processorInfo.options.source === 'auto-discovery') {
         const filePath = processorInfo.options.filePath;
         if (!fs.existsSync(filePath)) {
-          console.log(`🗑️ Removing processor for deleted file: ${topic}`);
+          this.logger.info('Removing processor for deleted file', { topic });
           this.deregisterProcessor(topic);
         }
       }
@@ -334,11 +351,11 @@ class ProcessorRegistry extends EventEmitter {
       if (isUpdate) {
         this.registryStats.totalUpdated++;
         this.emit('processor:updated', { topic, processor, version, options });
-        console.log(`🔄 Updated processor for topic: ${topic} (v${version})`);
+        this.logger.info('Updated processor for topic', { topic, version });
       } else {
         this.registryStats.totalRegistered++;
         this.emit('processor:registered', { topic, processor, version, options });
-        console.log(`✅ Registered processor for topic: ${topic} (v${version})`);
+        this.logger.info('Registered processor for topic', { topic, version });
       }
 
       this.registryStats.lastUpdated = new Date().toISOString();
@@ -360,7 +377,7 @@ class ProcessorRegistry extends EventEmitter {
       };
       
       this.emit('processor:error', result);
-      console.error(`❌ Failed to register processor for topic ${topic}:`, error.message);
+      this.logger.error('Failed to register processor for topic', { topic, error: error.message });
       
       return result;
     }
@@ -404,7 +421,7 @@ class ProcessorRegistry extends EventEmitter {
         options 
       });
 
-      console.log(`🗑️  Deregistered processor for topic: ${topic}`);
+      this.logger.info('Deregistered processor for topic', { topic });
 
       return {
         success: true,
@@ -423,7 +440,7 @@ class ProcessorRegistry extends EventEmitter {
       };
       
       this.emit('processor:error', result);
-      console.error(`❌ Failed to deregister processor for topic ${topic}:`, error.message);
+      this.logger.error('Failed to deregister processor for topic', { topic, error: error.message });
       
       return result;
     }
@@ -483,7 +500,7 @@ class ProcessorRegistry extends EventEmitter {
         options 
       });
 
-      console.log(`🔄 Updated processor for topic: ${topic} (v${oldVersion.version} → v${newVersion})`);
+      this.logger.info('Updated processor for topic', { topic, oldVersion: oldVersion.version, newVersion: newVersion });
 
       return {
         success: true,
@@ -503,7 +520,7 @@ class ProcessorRegistry extends EventEmitter {
       };
       
       this.emit('processor:error', result);
-      console.error(`❌ Failed to update processor for topic ${topic}:`, error.message);
+      this.logger.error('Failed to update processor for topic', { topic, error: error.message });
       
       return result;
     }
@@ -621,7 +638,7 @@ class ProcessorRegistry extends EventEmitter {
         options 
       });
 
-      console.log(`🧹 Cleared all processors (${clearedCount} removed)`);
+      this.logger.info('Cleared all processors', { clearedCount });
 
       return {
         success: true,
@@ -639,7 +656,7 @@ class ProcessorRegistry extends EventEmitter {
       };
       
       this.emit('registry:error', result);
-      console.error('❌ Failed to clear registry:', error.message);
+      this.logger.error('Failed to clear registry', { error: error.message });
       
       return result;
     }
@@ -715,7 +732,7 @@ class ProcessorRegistry extends EventEmitter {
     const processor = this.getProcessor(topic);
     
     if (!processor) {
-      console.warn(`⚠️  No processor found for topic: ${topic}`);
+      this.logger.warn('No processor found for topic', { topic });
       return {
         status: 'error',
         message: `No processor found for topic: ${topic}`,
@@ -725,7 +742,7 @@ class ProcessorRegistry extends EventEmitter {
     }
 
     try {
-      console.log(`🔄 Processing message from topic: ${topic}`);
+      this.logger.info('Processing message from topic', { topic });
       const result = await processor.process(topic, message, metadata);
       
       return {
@@ -736,7 +753,7 @@ class ProcessorRegistry extends EventEmitter {
       };
       
     } catch (error) {
-      console.error(`❌ Error processing message from ${topic}:`, error.message);
+      this.logger.error('Error processing message from topic', { topic, error: error.message });
       return {
         status: 'error',
         message: error.message,

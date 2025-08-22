@@ -3,12 +3,12 @@ const winston = require('winston');
 const ProcessorRegistry = require('./processor-registry');
 
 class KafkaAccessor {
-  constructor() {
-    // Load configuration from environment variables only
+  constructor(options = {}) {
+    // Load configuration from options or environment variables
     this.config = {
-      brokers: process.env.KAFKA_BROKERS || 'localhost:9092',
-      clientId: process.env.KAFKA_CLIENT_ID || 'kafka-accessor',
-      groupId: process.env.KAFKA_GROUP_ID || 'kafka-accessor-group'
+      brokers: options.brokers || process.env.KAFKA_BROKERS || 'localhost:9092',
+      clientId: options.clientId || process.env.KAFKA_CLIENT_ID || 'kafka-accessor',
+      groupId: options.groupId || process.env.KAFKA_GROUP_ID || 'kafka-accessor-group'
     };
 
     this.logger = winston.createLogger({
