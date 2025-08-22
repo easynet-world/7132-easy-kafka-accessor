@@ -17,7 +17,7 @@ const SystemLogsProcessor = require('./processors/system-logs');
 program
   .name('kafka-accessor')
   .description('Kafka producer and consumer service')
-  .version('1.0.0');
+  .version('0.0.1');
 
 program
   .command('producer')
