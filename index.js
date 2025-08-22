@@ -1,97 +1,41 @@
 #!/usr/bin/env node
 
 /**
- * Kafka Accessor Main Entry Point
- * 
- * This script allows running the Kafka accessor in different modes:
- * - producer: Start producer service
- * - consumer: Start consumer service  
- * - both: Start both producer and consumer services
+ * Kafka Data Accessor
+ * Simple Kafka producer and consumer library
  */
 
-const { program } = require('commander');
-const KafkaProducer = require('./src/producer');
-const KafkaConsumer = require('./src/consumer');
+const KafkaAccessor = require('./src/kafka-accessor');
+const BaseProcessor = require('./src/base-processor');
+const ProcessorRegistry = require('./src/processor-registry');
 const SystemLogsProcessor = require('./processors/system-logs');
 
-program
-  .name('kafka-accessor')
-  .description('Kafka producer and consumer service')
-  .version('0.0.2');
+// Export the main classes
+module.exports = {
+  KafkaAccessor,
+  BaseProcessor,
+  ProcessorRegistry,
+  SystemLogsProcessor
+};
 
-program
-  .command('producer')
-  .description('Start Kafka producer service')
-  .action(async () => {
-    console.log('Starting Kafka Producer service...');
-    const producer = new KafkaProducer();
-    await producer.start();
-  });
+// If run directly, show usage
+if (require.main === module) {
+  console.log(`
+🚀 Kafka Data Accessor - Simple Kafka Library
 
-program
-  .command('consumer')
-  .description('Start Kafka consumer service')
-  .option('-t, --topics <topics>', 'Comma-separated list of topics to consume', 'system-logs')
-  .action(async (options) => {
-    console.log('Starting Kafka Consumer service...');
-    const consumer = new KafkaConsumer();
-    
-    // Register the system logs processor
-    const systemLogsProcessor = new SystemLogsProcessor();
-    
-    await consumer.init();
-    
-    // Subscribe to specified topics
-    const topics = options.topics.split(',').map(t => t.trim());
-    for (const topic of topics) {
-      if (topic === 'system-logs' || topic === 'logs' || topic === 'system') {
-        await consumer.subscribeToTopic(topic, systemLogsProcessor);
-        console.log(`Subscribed to topic: ${topic} with SystemLogsProcessor`);
-      } else {
-        console.log(`Warning: No processor available for topic: ${topic}`);
-      }
-    }
-    
-    await consumer.start();
-  });
+Usage:
+  const { KafkaAccessor } = require('kafka-data-accessor');
+  
+  // No parameters needed - uses .env configuration
+  const kafka = new KafkaAccessor();
 
-program
-  .command('both')
-  .description('Start both producer and consumer services')
-  .option('-t, --topics <topics>', 'Comma-separated list of topics to consume', 'system-logs')
-  .action(async (options) => {
-    console.log('Starting both Kafka Producer and Consumer services...');
-    
-    // Start producer
-    const producer = new KafkaProducer();
-    
-    // Start consumer
-    const consumer = new KafkaConsumer();
-    const systemLogsProcessor = new SystemLogsProcessor();
-    
-    await consumer.init();
-    
-    // Subscribe to specified topics
-    const topics = options.topics.split(',').map(t => t.trim());
-    for (const topic of topics) {
-      if (topic === 'system-logs' || topic === 'logs' || topic === 'system') {
-        await consumer.subscribeToTopic(topic, systemLogsProcessor);
-        console.log(`Subscribed to topic: ${topic} with SystemLogsProcessor`);
-      } else {
-        console.log(`Warning: No processor available for topic: ${topic}`);
-      }
-    }
-    
-    // Start both services
-    await Promise.all([
-      producer.start(),
-      consumer.start()
-    ]);
-  });
+  // Send a message (producer auto-initializes)
+  await kafka.sendMessage('my-topic', { message: 'Hello!' });
+  
+  // Start consuming messages (consumer auto-initializes and subscribes to all processor topics)
+  await kafka.startConsumer();
+  // That's it! All processors/[topic-name].js files are automatically loaded
 
-// Default action if no command is provided
-if (process.argv.length <= 2) {
-  program.help();
+See README.md for more examples.
+`);
 }
-
-program.parse();

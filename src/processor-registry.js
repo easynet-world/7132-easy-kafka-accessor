@@ -1,20 +1,298 @@
 /**
  * Dynamic Processor Registry
  * Manages Kafka topic processors with dynamic registration, deregistration, and updates
+ * Supports configurable processor directories and automatic refresh
  */
 
 const EventEmitter = require('events');
+const fs = require('fs');
+const path = require('path');
 
 class ProcessorRegistry extends EventEmitter {
-  constructor() {
+  constructor(options = {}) {
     super();
+    
+    // Configuration
+    this.processorsDir = options.processorsDir || './processors';
+    this.autoRefresh = options.autoRefresh !== false; // Default to true
+    this.refreshInterval = options.refreshInterval || 5000; // 5 seconds
+    this.fileExtensions = options.fileExtensions || ['.js'];
+    
+    // Internal state
     this.processors = new Map();
     this.processorVersions = new Map();
+    this.processorFiles = new Map(); // Track file paths
     this.registryStats = {
       totalRegistered: 0,
       totalDeregistered: 0,
       totalUpdated: 0,
-      lastUpdated: null
+      lastUpdated: null,
+      autoRefreshCount: 0
+    };
+    
+    // Auto-refresh functionality
+    this.refreshTimer = null;
+    this.watcher = null;
+    
+    // Initialize auto-refresh if enabled
+    if (this.autoRefresh) {
+      this.startAutoRefresh();
+    }
+  }
+
+  /**
+   * Start automatic refresh of processors
+   */
+  startAutoRefresh() {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+    }
+    
+    this.refreshTimer = setInterval(async () => {
+      try {
+        await this.refreshProcessors();
+      } catch (error) {
+        console.error('❌ Auto-refresh error:', error.message);
+      }
+    }, this.refreshInterval);
+    
+    console.log(`🔄 Auto-refresh started for processors directory: ${this.processorsDir}`);
+  }
+
+  /**
+   * Stop automatic refresh
+   */
+  stopAutoRefresh() {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    
+    if (this.watcher) {
+      this.watcher.close();
+      this.watcher = null;
+    }
+    
+    console.log('⏹️ Auto-refresh stopped');
+  }
+
+  /**
+   * Set processors directory
+   * @param {string} dir - New processors directory path
+   */
+  setProcessorsDirectory(dir) {
+    this.processorsDir = dir;
+    console.log(`📁 Processors directory changed to: ${dir}`);
+    
+    // Refresh processors from new directory
+    if (this.autoRefresh) {
+      this.refreshProcessors();
+    }
+  }
+
+  /**
+   * Get processors directory
+   * @returns {string} Current processors directory
+   */
+  getProcessorsDirectory() {
+    return this.processorsDir;
+  }
+
+  /**
+   * Scan processors directory for available processor files
+   * @returns {Array} Array of processor file paths
+   */
+  scanProcessorFiles() {
+    try {
+      if (!fs.existsSync(this.processorsDir)) {
+        console.warn(`⚠️ Processors directory does not exist: ${this.processorsDir}`);
+        return [];
+      }
+      
+      const files = fs.readdirSync(this.processorsDir)
+        .filter(file => {
+          const ext = path.extname(file);
+          return this.fileExtensions.includes(ext) && !file.startsWith('.');
+        })
+        .map(file => path.join(this.processorsDir, file));
+      
+      return files;
+    } catch (error) {
+      console.error(`❌ Error scanning processors directory: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Load processor from file
+   * @param {string} filePath - Path to processor file
+   * @returns {Object|null} Processor instance or null if failed
+   */
+  loadProcessorFromFile(filePath) {
+    try {
+      // Resolve the absolute path
+      const absolutePath = path.resolve(filePath);
+      
+      // Clear require cache to ensure fresh load
+      delete require.cache[absolutePath];
+      
+      const processorModule = require(absolutePath);
+      const ProcessorClass = processorModule.default || processorModule;
+      
+      if (typeof ProcessorClass === 'function') {
+        return new ProcessorClass();
+      } else if (typeof processorModule === 'object' && processorModule.process) {
+        return processorModule;
+      }
+      
+      console.warn(`⚠️ Invalid processor in file: ${filePath}`);
+      return null;
+    } catch (error) {
+      console.error(`❌ Error loading processor from ${filePath}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Auto-discover and register processors from directory
+   * @param {Object} options - Discovery options
+   * @returns {Object} Discovery result
+   */
+  async autoDiscoverProcessors(options = {}) {
+    const forceRefresh = options.forceRefresh || false;
+    const kafkaAccessor = options.kafkaAccessor;
+    const discoveredProcessors = [];
+    const errors = [];
+    
+    console.log(`🔍 Scanning processors directory: ${this.processorsDir}`);
+    
+    // First, get available Kafka topics if kafkaAccessor is provided
+    let availableTopics = [];
+    if (kafkaAccessor && kafkaAccessor.admin) {
+      try {
+        console.log('📡 Scanning Kafka topics...');
+        availableTopics = await kafkaAccessor.admin.listTopics();
+        console.log(`✅ Found ${availableTopics.length} Kafka topics:`, availableTopics);
+      } catch (error) {
+        console.warn(`⚠️ Could not scan Kafka topics: ${error.message}`);
+        // Fall back to scanning processor files without topic validation
+        availableTopics = null;
+      }
+    }
+    
+    // Scan processor files
+    const currentFiles = this.scanProcessorFiles();
+    
+    for (const filePath of currentFiles) {
+      const fileName = path.basename(filePath, path.extname(filePath));
+      const existingFile = this.processorFiles.get(fileName);
+      
+      // Check if file has changed
+      if (existingFile && !forceRefresh) {
+        try {
+          const stats = fs.statSync(filePath);
+          if (stats.mtime.getTime() === existingFile.mtime.getTime()) {
+            continue; // File hasn't changed
+          }
+        } catch (error) {
+          console.warn(`⚠️ Could not check file modification time: ${filePath}`);
+        }
+      }
+      
+      // Only register processor if topic exists in Kafka (if we have topic list)
+      if (availableTopics !== null && !availableTopics.includes(fileName)) {
+        console.log(`⏭️ Skipping processor ${fileName}.js - topic '${fileName}' not found in Kafka`);
+        continue;
+      }
+      
+      // Load and register processor
+      const processor = this.loadProcessorFromFile(filePath);
+      if (processor) {
+        try {
+          // Use filename as topic name (remove .js extension)
+          const topic = fileName;
+          
+          // Register processor
+          const result = this.registerProcessor(topic, processor, {
+            source: 'auto-discovery',
+            filePath: filePath
+          });
+          
+          if (result.success) {
+            // Track file info
+            try {
+              const stats = fs.statSync(filePath);
+              this.processorFiles.set(fileName, {
+                filePath,
+                mtime: stats.mtime,
+                size: stats.size
+              });
+            } catch (error) {
+              console.warn(`⚠️ Could not track file info: ${filePath}`);
+            }
+            
+            discoveredProcessors.push({ topic, filePath, result });
+            console.log(`✅ Registered processor for topic: ${topic}`);
+          }
+        } catch (error) {
+          errors.push({ filePath, error: error.message });
+        }
+      }
+    }
+    
+    // Remove processors for files that no longer exist
+    const existingTopics = Array.from(this.processors.keys());
+    for (const topic of existingTopics) {
+      const processorInfo = this.processorVersions.get(topic);
+      if (processorInfo && processorInfo.options.source === 'auto-discovery') {
+        const filePath = processorInfo.options.filePath;
+        if (!fs.existsSync(filePath)) {
+          console.log(`🗑️ Removing processor for deleted file: ${topic}`);
+          this.deregisterProcessor(topic);
+        }
+      }
+    }
+    
+    this.registryStats.autoRefreshCount++;
+    
+    return {
+      success: true,
+      discovered: discoveredProcessors.length,
+      errors: errors.length,
+      totalProcessors: this.processors.size,
+      availableTopics: availableTopics || [],
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Refresh processors (alias for autoDiscoverProcessors)
+   * @param {Object} options - Refresh options
+   * @returns {Object} Refresh result
+   */
+  async refreshProcessors(options = {}) {
+    return await this.autoDiscoverProcessors(options);
+  }
+
+  /**
+   * Get processor file information
+   * @returns {Object} Map of processor names to file info
+   */
+  getProcessorFileInfo() {
+    return Object.fromEntries(this.processorFiles);
+  }
+
+  /**
+   * Get auto-refresh status
+   * @returns {Object} Auto-refresh status information
+   */
+  getAutoRefreshStatus() {
+    return {
+      enabled: this.autoRefresh,
+      interval: this.refreshInterval,
+      isRunning: !!this.refreshTimer,
+      lastRefresh: this.registryStats.lastUpdated,
+      refreshCount: this.registryStats.autoRefreshCount
     };
   }
 

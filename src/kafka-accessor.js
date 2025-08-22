@@ -1,13 +1,14 @@
 const { Kafka } = require('kafkajs');
 const winston = require('winston');
+const ProcessorRegistry = require('./processor-registry');
 
 class KafkaAccessor {
-  constructor(config = {}) {
+  constructor() {
+    // Load configuration from environment variables only
     this.config = {
-      brokers: config.brokers || process.env.KAFKA_BROKERS || 'localhost:9092',
-      clientId: config.clientId || process.env.KAFKA_CLIENT_ID || 'kafka-accessor',
-      groupId: config.groupId || process.env.KAFKA_GROUP_ID || 'kafka-accessor-group',
-      ...config
+      brokers: process.env.KAFKA_BROKERS || 'localhost:9092',
+      clientId: process.env.KAFKA_CLIENT_ID || 'kafka-accessor',
+      groupId: process.env.KAFKA_GROUP_ID || 'kafka-accessor-group'
     };
 
     this.logger = winston.createLogger({
@@ -37,6 +38,13 @@ class KafkaAccessor {
     this.producer = null;
     this.consumer = null;
     this.admin = null;
+    
+    // Initialize processor registry automatically
+    this.processorRegistry = new ProcessorRegistry({
+      processorsDir: process.env.PROCESSORS_DIR || './processors',
+      autoRefresh: process.env.PROCESSORS_AUTO_REFRESH !== 'false',
+      refreshInterval: parseInt(process.env.PROCESSORS_REFRESH_INTERVAL) || 10000
+    });
   }
 
   /**
@@ -63,6 +71,7 @@ class KafkaAccessor {
    */
   async topicExists(topic) {
     try {
+      // Auto-initialize admin if not already initialized
       if (!this.admin) {
         await this.initAdmin();
       }
@@ -82,6 +91,7 @@ class KafkaAccessor {
    */
   async createTopic(topic, options = {}) {
     try {
+      // Auto-initialize admin if not already initialized
       if (!this.admin) {
         await this.initAdmin();
       }
@@ -154,9 +164,90 @@ class KafkaAccessor {
 
       await this.consumer.connect();
       this.logger.info('Kafka consumer initialized successfully');
+      
+      // Automatically discover and subscribe to topics with processors
+      await this.autoSubscribeToProcessorTopics();
+      
       return this.consumer;
     } catch (error) {
       this.logger.error('Failed to initialize consumer', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Automatically subscribe to all topics that have processors
+   */
+  async autoSubscribeToProcessorTopics() {
+    try {
+      // Auto-discover processors
+      await this.processorRegistry.autoDiscoverProcessors({
+        kafkaAccessor: this
+      });
+
+      const availableTopics = this.processorRegistry.getAvailableTopics();
+      
+      if (availableTopics.length === 0) {
+        this.logger.info('No processors found - no topics to subscribe to');
+        return;
+      }
+
+      this.logger.info(`Auto-subscribing to ${availableTopics.length} topics with processors:`, availableTopics);
+
+      // Subscribe to all topics at once
+      await this.consumer.subscribe({
+        topics: availableTopics,
+        fromBeginning: false
+      });
+
+      // Set up message processing
+      await this.consumer.run({
+        eachMessage: async ({ topic, partition, message }) => {
+          try {
+            const payload = JSON.parse(message.value.toString());
+            const key = message.key ? message.key.toString() : null;
+
+            const metadata = {
+              topic,
+              partition,
+              offset: message.offset,
+              key,
+              timestamp: message.timestamp,
+              headers: message.headers
+            };
+
+            this.logger.info('Processing message', {
+              topic,
+              partition,
+              offset: message.offset,
+              key
+            });
+
+            // Process using the registry
+            await this.processorRegistry.processMessage(topic, payload, metadata);
+
+            this.logger.info('Message processed successfully', {
+              topic,
+              partition,
+              offset: message.offset
+            });
+          } catch (error) {
+            this.logger.error('Error processing message', {
+              topic,
+              partition,
+              offset: message.offset,
+              error: error.message
+            });
+            
+            // Re-throw error to let Kafka handle retry logic
+            throw error;
+          }
+        }
+      });
+
+      this.logger.info(`Successfully subscribed to ${availableTopics.length} topics`);
+    } catch (error) {
+      this.logger.error('Failed to auto-subscribe to processor topics', { error: error.message });
       throw error;
     }
   }
@@ -168,8 +259,9 @@ class KafkaAccessor {
    * @param {Object} options - Additional options (key, partition, etc.)
    */
   async sendMessage(topic, payload, options = {}) {
+    // Auto-initialize producer if not already initialized
     if (!this.producer) {
-      throw new Error('Producer not initialized. Call initProducer() first.');
+      await this.initProducer();
     }
 
     try {
@@ -205,14 +297,31 @@ class KafkaAccessor {
   }
 
   /**
-   * Subscribe to a topic and process messages
+   * Start consuming messages from all topics with processors
+   * This is the main method to start message consumption
+   */
+  async startConsumer() {
+    if (!this.consumer) {
+      await this.initConsumer();
+    }
+    this.logger.info('Consumer started and processing messages from all processor topics');
+  }
+
+  /**
+   * Subscribe to a specific topic with custom message handler
+   * Note: This is mainly for custom use cases. Use startConsumer() for automatic processing.
    * @param {string} topic - Topic name
    * @param {Function} messageHandler - Function to process messages
    * @param {Object} options - Additional options
    */
   async subscribeToTopic(topic, messageHandler, options = {}) {
+    // Auto-initialize consumer if not already initialized
     if (!this.consumer) {
-      throw new Error('Consumer not initialized. Call initConsumer() first.');
+      await this.initConsumer();
+    }
+
+    if (!messageHandler) {
+      throw new Error('Message handler is required for manual subscription');
     }
 
     try {
@@ -227,21 +336,23 @@ class KafkaAccessor {
             const payload = JSON.parse(message.value.toString());
             const key = message.key ? message.key.toString() : null;
 
-            this.logger.info('Processing message', {
-              topic,
-              partition,
-              offset: message.offset,
-              key
-            });
-
-            await messageHandler(payload, {
+            const metadata = {
               topic,
               partition,
               offset: message.offset,
               key,
               timestamp: message.timestamp,
               headers: message.headers
+            };
+
+            this.logger.info('Processing message with custom handler', {
+              topic,
+              partition,
+              offset: message.offset,
+              key
             });
+
+            await messageHandler(payload, metadata);
 
             this.logger.info('Message processed successfully', {
               topic,
@@ -263,7 +374,7 @@ class KafkaAccessor {
         eachBatch: options.eachBatch || null
       });
 
-      this.logger.info('Successfully subscribed to topic', { topic });
+      this.logger.info('Successfully subscribed to topic with custom handler', { topic });
     } catch (error) {
       this.logger.error('Failed to subscribe to topic', {
         topic,
@@ -292,6 +403,12 @@ class KafkaAccessor {
         await this.admin.disconnect();
         this.logger.info('Admin client disconnected');
       }
+
+      // Stop processor registry auto-refresh
+      if (this.processorRegistry) {
+        this.processorRegistry.stopAutoRefresh();
+        this.logger.info('Processor registry auto-refresh stopped');
+      }
     } catch (error) {
       this.logger.error('Error during disconnect', { error: error.message });
       throw error;
@@ -319,7 +436,28 @@ class KafkaAccessor {
         brokers: this.config.brokers,
         clientId: this.config.clientId,
         groupId: this.config.groupId
-      }
+      },
+      processorRegistry: this.processorRegistry ? {
+        enabled: this.processorRegistry.getAutoRefreshStatus().enabled,
+        processors: this.processorRegistry.getAvailableTopics(),
+        autoRefresh: this.processorRegistry.getAutoRefreshStatus()
+      } : null
+    };
+  }
+
+  /**
+   * Get processor registry information
+   */
+  getProcessorRegistryInfo() {
+    if (!this.processorRegistry) {
+      return null;
+    }
+    
+    return {
+      directory: this.processorRegistry.getProcessorsDirectory(),
+      availableTopics: this.processorRegistry.getAvailableTopics(),
+      autoRefresh: this.processorRegistry.getAutoRefreshStatus(),
+      fileInfo: this.processorRegistry.getProcessorFileInfo()
     };
   }
 }
