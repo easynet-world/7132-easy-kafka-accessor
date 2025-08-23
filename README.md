@@ -59,20 +59,14 @@ module.exports = MyTopicProcessor;
 
 ### **Step 3: Start Processing**
 
-```javascript
-const { KafkaAccessor } = require('kafka-data-accessor');
-
-const kafka = new KafkaAccessor();
-
-// 🚀 Start consumer - automatically subscribes to all processor topics
-await kafka.startConsumer();
-
-// 🎉 That's it! Messages start flowing immediately
+```bash
+npm start
 ```
 
-**✅ Automatically detects your `processors/my-topic.js` file**
-**✅ Subscribes to the `my-topic` topic (from filename)**
-**✅ Starts processing messages immediately**
+**🎉 That's it!** The application automatically:
+- ✅ Detects your `processors/my-topic.js` file
+- ✅ Subscribes to the `my-topic` topic (from filename)
+- ✅ Starts processing messages immediately
 
 ## 🎯 **Core Methods** 
 
