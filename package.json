@@ -55,10 +55,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/easynet-world/easy-kafka-accessor.git"
+    "url": "git@github.com:easynet-world/7132-easy-kafka-accessor.git"
   },
   "bugs": {
-    "url": "https://github.com/easynet-world/easy-kafka-accessor/issues"
+    "url": "https://github.com/easynet-world/7132-easy-kafka-accessor/issues"
   },
-  "homepage": "https://github.com/easynet-world/easy-kafka-accessor#readme"
+  "homepage": "https://github.com/easynet-world/7132-easy-kafka-accessor#readme"
 }
