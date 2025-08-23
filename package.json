@@ -1,10 +1,10 @@
 {
-  "name": "kafka-data-accessor",
-  "version": "0.0.5",
+  "name": "easy-kafka-accessor",
+  "version": "0.0.1",
   "description": "Kafka producer and consumer service with message processing capabilities",
   "main": "index.js",
   "bin": {
-    "kafka-data-accessor": "index.js"
+    "easy-kafka-accessor": "index.js"
   },
   "scripts": {
     "test": "jest",
@@ -55,10 +55,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/easynet-world/7132-kafka-data-accessor.git"
+    "url": "git+https://github.com/easynet-world/easy-kafka-accessor.git"
   },
   "bugs": {
-    "url": "https://github.com/easynet-world/7132-kafka-data-accessor/issues"
+    "url": "https://github.com/easynet-world/easy-kafka-accessor/issues"
   },
-  "homepage": "https://github.com/easynet-world/7132-kafka-data-accessor#readme"
+  "homepage": "https://github.com/easynet-world/easy-kafka-accessor#readme"
 }

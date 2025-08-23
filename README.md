@@ -1,4 +1,4 @@
-# Kafka Data Accessor
+# Easy Kafka Accessor
 
 > **Kafka message processing that automatically discovers your topics and requires just ONE function to process everything.**
 
@@ -19,7 +19,7 @@
 ## 📦 **Installation** 
 
 ```bash
-npm install kafka-data-accessor
+npm install easy-kafka-accessor
 ```
 
 ## ⚡ **Quick Start (3 Steps)** 
@@ -45,7 +45,7 @@ KAFKA_GROUP_ID=my-group
 
 ```javascript
 // processors/my-topic.js
-const { KafkaTopicProcessor } = require('kafka-data-accessor');
+const { KafkaTopicProcessor } = require('easy-kafka-accessor');
 
 class MyTopicProcessor extends KafkaTopicProcessor {
   async processMessage(message, metadata) {
@@ -108,7 +108,7 @@ npm start
 
 ### **Programmatic Usage**
 ```javascript
-const { KafkaAccessor } = require('kafka-data-accessor');
+const { KafkaAccessor } = require('easy-kafka-accessor');
 
 const kafka = new KafkaAccessor();
 
@@ -261,5 +261,5 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Kafka message processing that thinks for itself** 🧠✨
+**Easy Kafka message processing that thinks for itself** 🧠✨
 
