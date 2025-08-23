@@ -95,7 +95,9 @@ await kafka.startConsumer();
 * ❌ No manual topic subscription
 * ❌ No configuration boilerplate
 * ❌ No complex Kafka setup code
+* ❌ No manual topic creation
 * ✅ Just create a processor file and implement one function
+* ✅ Topics are automatically created when you send messages
 
 ## 📋 **Usage Examples** 
 
@@ -113,7 +115,7 @@ const kafka = new KafkaAccessor();
 // Start consumer - automatically subscribes to all processor topics
 await kafka.startConsumer();
 
-// Send messages (producer auto-initializes)
+// Send messages (producer auto-initializes, topic auto-created if not exists)
 await kafka.sendMessage('user-events', {
   userId: 123,
   action: 'login',
@@ -128,7 +130,7 @@ await kafka.sendMessage('user-events', {
 | Method                          | Purpose               | Example                                                    |
 | -------------------------------- | --------------------- | ---------------------------------------------------------- |
 | startConsumer()                 | Start auto-processing | await kafka.startConsumer()                                |
-| sendMessage(topic, data)        | Send messages         | await kafka.sendMessage('logs', {level: 'info'})          |
+| sendMessage(topic, data)        | Send messages (auto-creates topic if not exists) | await kafka.sendMessage('logs', {level: 'info'})          |
 | subscribeToTopic(topic, handler)| Custom subscription   | await kafka.subscribeToTopic('events', handler)           |
 | topicExists(topic)              | Check topic exists    | const exists = await kafka.topicExists('my-topic')        |
 | createTopic(topic, options)     | Create new topic      | await kafka.createTopic('my-topic', {numPartitions: 3})   |
