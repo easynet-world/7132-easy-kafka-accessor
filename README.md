@@ -14,6 +14,7 @@
 | 🧠 **One Function Processing**   | Just implement `processMessage()` - everything else is automatic  |
 | 🛡️ **Zero Configuration**        | No manual topic subscription or setup needed                       |
 | ⚡ **File-Based Discovery**      | Create `processors/[topic-name].js` and it's automatically loaded |
+| 🔄 **Runtime Management**        | Add, remove, or update processors without restarting              |
 
 ## 📦 **Installation** 
 
@@ -59,8 +60,6 @@ class MyTopicProcessor extends KafkaTopicProcessor {
 module.exports = MyTopicProcessor;
 ```
 
-**🔄 Runtime Management**: You can add, remove, or update processors at runtime - the system automatically detects changes and adjusts subscriptions accordingly!
-
 ### **Step 3: Start Processing**
 
 ```bash
@@ -72,32 +71,18 @@ npm start
 - ✅ Subscribes to the `my-topic` topic (from filename)
 - ✅ Starts processing messages immediately
 
-## 🎯 **Core Methods** 
-
-| Method                          | Purpose               | Example                                                    |
-| ------------------------------- | --------------------- | ---------------------------------------------------------- |
-| startConsumer()                 | Start auto-processing | await kafka.startConsumer()                                |
-| sendMessage(topic, data)        | Send messages         | await kafka.sendMessage('logs', {level: 'info'})          |
-| subscribeToTopic(topic, handler)| Custom subscription   | await kafka.subscribeToTopic('events', handler)           |
-| topicExists(topic)              | Check topic exists    | const exists = await kafka.topicExists('my-topic')        |
-| createTopic(topic, options)     | Create new topic      | await kafka.createTopic('my-topic', {numPartitions: 3})   |
-| disconnect()                     | Clean shutdown        | await kafka.disconnect()                                   |
-
 ## 🔍 **How It Works** 
 
 ### **1. Auto Discovery**
-
 ```javascript
 await kafka.startConsumer();
 // ✅ Scans processors/ directory for topic processors
 // ✅ Automatically subscribes to all discovered topics
 // ✅ Uses topic names from filenames (processors/[topic-name].js)
-// ✅ Starts processing messages immediately
 // ✅ Runtime changes automatically detected and applied
 ```
 
 ### **2. One Function Processing**
-
 ```javascript
 // The processor KNOWS your topic, so it:
 // - Automatically handles all messages for that topic
@@ -107,13 +92,12 @@ await kafka.startConsumer();
 ```
 
 ### **3. Zero Manual Work**
-
 * ❌ No manual topic subscription
 * ❌ No configuration boilerplate
 * ❌ No complex Kafka setup code
 * ✅ Just create a processor file and implement one function
 
-## 📋 **Complete Example** 
+## 📋 **Usage Examples** 
 
 ### **Quick Start (npm start)**
 ```bash
@@ -126,148 +110,55 @@ const { KafkaAccessor } = require('kafka-data-accessor');
 
 const kafka = new KafkaAccessor();
 
-// 🚀 Start consumer - automatically subscribes to all processor topics
+// Start consumer - automatically subscribes to all processor topics
 await kafka.startConsumer();
 
-// 🎉 That's it! Messages start flowing immediately
+// Send messages (producer auto-initializes)
+await kafka.sendMessage('user-events', {
+  userId: 123,
+  action: 'login',
+  timestamp: new Date().toISOString()
+});
+
+// Messages automatically processed by processors/user-events.js
 ```
 
-### **Full Example with Producer and Consumer**
-```javascript
-const { KafkaAccessor } = require('kafka-data-accessor');
+## 🎯 **Core Methods** 
 
-async function example() {
-  const kafka = new KafkaAccessor();
-  
-  // Start consumer (auto-discovers all processors)
-  await kafka.startConsumer();
-  
-  // Send messages (producer auto-initializes)
-  await kafka.sendMessage('user-events', {
-    userId: 123,
-    action: 'login',
-    timestamp: new Date().toISOString()
-  });
-  
-  // Messages automatically processed by processors/user-events.js
-}
-
-// Your processor automatically handles the message:
-// processors/user-events.js
-class UserEventsProcessor extends KafkaTopicProcessor {
-  async processMessage(message, metadata) {
-    console.log('User event:', message);
-    // Process user event...
-    return { processed: true };
-  }
-}
-```
-
-## 🎯 **Creating Processors** 
-
-### **⚡ One Function to Process Everything!**
-
-Create a processor file for your topic - **just implement ONE function**:
-
-```javascript
-// processors/user-events.js
-const { KafkaTopicProcessor } = require('kafka-data-accessor');
-
-class UserEventsProcessor extends KafkaTopicProcessor {
-  // 🎯 THIS IS THE ONLY FUNCTION YOU NEED TO IMPLEMENT!
-  async processMessage(message, metadata) {
-    // Your processing logic here
-    console.log('Processing user event:', message);
-    
-    // Return result
-    return {
-      userId: message.userId,
-      action: message.action,
-      processed: true
-    };
-  }
-}
-
-module.exports = UserEventsProcessor;
-```
-
-**🎉 That's literally it!** The processor automatically:
-- ✅ Gets loaded when you start the consumer
-- ✅ Subscribes to the `user-events` topic (from filename)
-- ✅ Handles all messages with logging and error handling
-- ✅ Uses the topic name from the filename
-
-### **🧠 How Smart Auto-Subscription Works**
-
-1. **📁 File Naming**: `processors/[topic-name].js` → automatically subscribes to `[topic-name]`
-2. **⚡ One Function**: Extend `KafkaTopicProcessor` and implement `processMessage()`
-3. **🔍 Auto-Discovery**: Just call `kafka.startConsumer()` - **everything else is automatic!**
+| Method                          | Purpose               | Example                                                    |
+| -------------------------------- | --------------------- | ---------------------------------------------------------- |
+| startConsumer()                 | Start auto-processing | await kafka.startConsumer()                                |
+| sendMessage(topic, data)        | Send messages         | await kafka.sendMessage('logs', {level: 'info'})          |
+| subscribeToTopic(topic, handler)| Custom subscription   | await kafka.subscribeToTopic('events', handler)           |
+| topicExists(topic)              | Check topic exists    | const exists = await kafka.topicExists('my-topic')        |
+| createTopic(topic, options)     | Create new topic      | await kafka.createTopic('my-topic', {numPartitions: 3})   |
+| disconnect()                     | Clean shutdown        | await kafka.disconnect()                                   |
 
 ## 🚀 **Application Scripts** 
 
-### **Start the Application**
-
 ```bash
-# Using npm script
-npm start
+# Start
+npm start                    # or node app.js
+./scripts/start.sh          # Unix/Mac
+scripts\start.bat           # Windows
 
-# Or directly with Node.js
-node app.js
-
-# Or using the shell script
-./scripts/start.sh
-
-# Windows users
-scripts\start.bat
-```
-
-### **Stop the Application**
-
-```bash
-# Unix/Mac
-npm run stop
-
-# Windows users
-npm run stop:win
-
-# Or using the shell script
-./scripts/stop.sh
-
-# Windows users
-scripts\stop.bat
+# Stop
+npm run stop                # Unix/Mac
+npm run stop:win            # Windows
+./scripts/stop.sh           # Unix/Mac
+scripts\stop.bat            # Windows
 ```
 
 ## ⚙️ **Configuration** 
 
-### **Environment Variables**
-
-Create a `.env` file in your project root:
-
-```bash
-# Copy the example file
-cp env.example .env
-
-# Edit .env with your configuration
-KAFKA_BROKERS=localhost:9092
-KAFKA_CLIENT_ID=my-app
-KAFKA_GROUP_ID=my-group
-LOG_LEVEL=info
-
-# Processor Registry (optional)
-PROCESSORS_DIR=./processors
-PROCESSORS_AUTO_REFRESH=true
-PROCESSORS_REFRESH_INTERVAL=5000
-```
-
-### **Configuration Options**
-
-All configuration is done via environment variables:
+Create a `.env` file with your Kafka settings:
 
 ```bash
 # Kafka Configuration
 KAFKA_BROKERS=localhost:9092
 KAFKA_CLIENT_ID=my-app
 KAFKA_GROUP_ID=my-group
+LOG_LEVEL=info
 
 # Producer Configuration
 PRODUCER_ACKS=1
@@ -278,6 +169,11 @@ PRODUCER_RETRY_ATTEMPTS=3
 CONSUMER_SESSION_TIMEOUT=30000
 CONSUMER_HEARTBEAT_INTERVAL=3000
 CONSUMER_MAX_BYTES=1048576
+
+# Processor Registry (optional)
+PROCESSORS_DIR=./processors
+PROCESSORS_AUTO_REFRESH=true
+PROCESSORS_REFRESH_INTERVAL=5000
 ```
 
 **Note**: No constructor parameters needed - everything comes from `.env` file.
@@ -285,14 +181,11 @@ CONSUMER_MAX_BYTES=1048576
 ## 🔧 **API Reference** 
 
 ### **KafkaAccessor**
-
 ```javascript
-// No parameters needed - uses .env configuration
-const kafka = new KafkaAccessor();
+const kafka = new KafkaAccessor(); // No parameters needed
 ```
 
 ### **Producer Methods**
-
 ```javascript
 // Send message (auto-initializes producer)
 await kafka.sendMessage('topic', { data: 'message' });
@@ -305,7 +198,6 @@ await kafka.sendMessage('topic', message, {
 ```
 
 ### **Consumer Methods**
-
 ```javascript
 // Start consumer (auto-initializes and subscribes to all processor topics)
 await kafka.startConsumer();
@@ -317,7 +209,6 @@ await kafka.subscribeToTopic('topic', (message, metadata) => {
 ```
 
 ### **Admin Methods**
-
 ```javascript
 // Check if topic exists (auto-initializes admin)
 const exists = await kafka.topicExists('my-topic');
@@ -330,10 +221,8 @@ await kafka.createTopic('my-topic', {
 ```
 
 ### **Cleanup**
-
 ```javascript
-// Disconnect all clients
-await kafka.disconnect();
+await kafka.disconnect(); // Disconnect all clients
 ```
 
 ## 🎯 **Why Choose Kafka Data Accessor?** 
@@ -342,7 +231,7 @@ await kafka.disconnect();
 - **Zero Configuration**: No manual topic subscription needed
 - **File-Based Discovery**: Create `processors/[topic-name].js` and it's automatically loaded
 - **Instant Processing**: Messages start flowing immediately after `startConsumer()`
-- **Background Refresh**: Processors are automatically refreshed in the background
+- **Runtime Management**: Add, remove, or update processors without restarting
 
 ### **⚡ One Function Processing**
 - **Single Responsibility**: Just implement `processMessage()` - that's it!
