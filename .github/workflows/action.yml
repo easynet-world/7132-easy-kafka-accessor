@@ -32,6 +32,7 @@ jobs:
           echo "Current local version: $CURRENT_VERSION"
           echo "Current npm version: $NPM_VERSION"
           
+          # Always bump version if local version equals npm version
           if [ "$CURRENT_VERSION" = "$NPM_VERSION" ]; then
             echo "Bumping patch version..."
             npm version patch --no-git-tag-version
@@ -40,7 +41,8 @@ jobs:
             echo "new_version=$NEW_VERSION" >> $GITHUB_ENV
             echo "bumped=true" >> $GITHUB_OUTPUT
           else
-            echo "No version bump needed - using existing version"
+            echo "Local version ($CURRENT_VERSION) differs from npm version ($NPM_VERSION)"
+            echo "Using local version: $CURRENT_VERSION"
             echo "new_version=$CURRENT_VERSION" >> $GITHUB_ENV
             echo "bumped=false" >> $GITHUB_OUTPUT
           fi
@@ -49,6 +51,14 @@ jobs:
         run: |
           echo "Final package.json version: $(node -p "require('./package.json').version")"
           echo "Will publish version: ${{ env.new_version }}"
+      
+      - name: Commit version bump if needed
+        if: steps.version.bumped == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json
+          git commit -m "chore: bump version to ${{ env.new_version }} [skip ci]"
       
       - name: Publish to NPM
         env:
@@ -60,12 +70,6 @@ jobs:
       - name: Create git tag and push
         if: steps.version.bumped == 'true'
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          git add package.json
-          git commit -m "chore: bump version to ${{ env.new_version }} [skip ci]"
           git tag v${{ env.new_version }}
-          
           git push origin HEAD:master
           git push origin v${{ env.new_version }}
