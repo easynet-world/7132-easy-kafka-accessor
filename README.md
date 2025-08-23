@@ -40,6 +40,8 @@ KAFKA_GROUP_ID=my-group
 
 ### **Step 2: Create a Processor**
 
+**📁 Important**: The filename must match your topic name exactly: `processors/[topic-name].js`
+
 ```javascript
 // processors/my-topic.js
 const { KafkaTopicProcessor } = require('kafka-data-accessor');
@@ -56,6 +58,8 @@ class MyTopicProcessor extends KafkaTopicProcessor {
 
 module.exports = MyTopicProcessor;
 ```
+
+**🔄 Runtime Management**: You can add, remove, or update processors at runtime - the system automatically detects changes and adjusts subscriptions accordingly!
 
 ### **Step 3: Start Processing**
 
@@ -89,6 +93,7 @@ await kafka.startConsumer();
 // ✅ Automatically subscribes to all discovered topics
 // ✅ Uses topic names from filenames (processors/[topic-name].js)
 // ✅ Starts processing messages immediately
+// ✅ Runtime changes automatically detected and applied
 ```
 
 ### **2. One Function Processing**
