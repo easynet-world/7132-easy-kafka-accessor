@@ -10,7 +10,11 @@
     "test": "jest",
     "lint": "eslint src/ processors/",
     "lint:fix": "eslint src/ processors/ --fix",
-    "release": "semantic-release"
+    "release": "semantic-release",
+    "start": "node app.js",
+    "start:dev": "node app.js",
+    "stop": "bash scripts/stop.sh",
+    "stop:win": "scripts\\stop.bat"
   },
   "keywords": [
     "kafka",

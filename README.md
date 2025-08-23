@@ -34,6 +34,63 @@ await kafka.disconnect();
 - ⚡ Starts processing messages immediately
 - 🚫 No manual subscription or configuration needed
 
+## 🎯 **Application Scripts**
+
+### **Start the Application**
+
+The simplest way to start the Kafka consumer:
+
+```bash
+# Using npm script
+npm start
+
+# Or directly with Node.js
+node app.js
+
+# Or using the shell script
+./scripts/start.sh
+
+# Windows users
+scripts\start.bat
+```
+
+### **Stop the Application**
+
+```bash
+# Using npm script (Unix/Mac)
+npm run stop
+
+# Windows users
+npm run stop:win
+
+# Or using the shell script
+./scripts/stop.sh
+
+# Windows users
+scripts\stop.bat
+```
+
+### **What Happens When You Start**
+
+1. **🔍 Auto-Discovery**: Scans `processors/` directory for topic processors
+2. **📡 Auto-Subscription**: Automatically subscribes to all discovered topics
+3. **⚡ Message Processing**: Starts processing messages immediately
+4. **🛑 Graceful Shutdown**: Press `Ctrl+C` to stop gracefully
+
+### **Simple Configuration**
+
+Just create a `.env` file (or copy from `env.example`):
+
+```bash
+# Copy the example file
+cp env.example .env
+
+# Edit with your Kafka settings
+KAFKA_BROKERS=localhost:9092
+KAFKA_CLIENT_ID=my-app
+KAFKA_GROUP_ID=my-group
+```
+
 ## 🎯 Creating Processors
 
 ### ⚡ **One Function to Process Everything!**
