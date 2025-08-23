@@ -40,6 +40,7 @@ jobs:
             echo "New version: $NEW_VERSION"
             echo "new_version=$NEW_VERSION" >> $GITHUB_ENV
             echo "bumped=true" >> $GITHUB_OUTPUT
+            echo "Version bump completed: $CURRENT_VERSION -> $NEW_VERSION"
           else
             echo "Local version ($CURRENT_VERSION) differs from npm version ($NPM_VERSION)"
             echo "Using local version: $CURRENT_VERSION"
@@ -51,6 +52,10 @@ jobs:
         run: |
           echo "Final package.json version: $(node -p "require('./package.json').version")"
           echo "Will publish version: ${{ env.new_version }}"
+          echo "Git status:"
+          git status
+          echo "Package.json content:"
+          cat package.json | grep -A 5 -B 5 '"version"'
       
       - name: Commit version bump if needed
         if: steps.version.bumped == 'true'
@@ -59,6 +64,7 @@ jobs:
           git config --local user.name "GitHub Action"
           git add package.json
           git commit -m "chore: bump version to ${{ env.new_version }} [skip ci]"
+          echo "Version bump committed successfully"
       
       - name: Publish to NPM
         env:
