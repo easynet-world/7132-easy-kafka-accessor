@@ -108,9 +108,9 @@ await kafka.startConsumer();
 
 ### **3. Zero Manual Work**
 
-* ❌ No SQL writing required
 * ❌ No manual topic subscription
 * ❌ No configuration boilerplate
+* ❌ No complex Kafka setup code
 * ✅ Just create a processor file and implement one function
 
 ## 📋 **Complete Example** 
