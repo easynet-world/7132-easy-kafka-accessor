@@ -24,7 +24,7 @@ if (require.main === module) {
 Kafka Data Accessor - Simple Kafka Library
 
 Usage:
-  const { KafkaAccessor } = require('kafka-data-accessor');
+  const { KafkaAccessor } = require('easy-kafka-accessor');
   
   // No parameters needed - uses .env configuration
   const kafka = new KafkaAccessor();
