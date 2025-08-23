@@ -11,85 +11,38 @@ A simple, lightweight Node.js library for Kafka message production and consumpti
 
 ## 🚀 Quick Start
 
+**🎯 You only need to implement ONE function!**
+
+### 1. Create a processor file
+
 ```javascript
-const { KafkaAccessor } = require('kafka-data-accessor');
+// processors/my-topic.js
+const { KafkaTopicProcessor } = require('kafka-data-accessor');
 
-// Create instance (uses .env configuration)
-const kafka = new KafkaAccessor();
+class MyTopicProcessor extends KafkaTopicProcessor {
+  async processMessage(message, metadata) {
+    // 🎯 THIS IS THE ONLY FUNCTION YOU NEED TO IMPLEMENT!
+    console.log('Processing message:', message);
+    
+    // Your processing logic here
+    return { processed: true, data: message };
+  }
+}
 
-// Send a message (producer auto-initializes)
-await kafka.sendMessage('my-topic', { message: 'Hello Kafka!' });
-
-// 🎯 ONE LINE TO START PROCESSING ALL TOPICS!
-await kafka.startConsumer();
-// ✨ That's it! All processors are automatically discovered and subscribed
-
-// Clean up
-await kafka.disconnect();
+module.exports = MyTopicProcessor;
 ```
 
-**🎉 Magic happens automatically:**
-- 🔍 Scans `processors/` directory for topic processors
-- 📡 Auto-subscribes to all discovered topics
+### 2. Start the application
+
+```bash
+npm start
+```
+
+**🎉 That's it!** The application automatically:
+- 🔍 Discovers your `processors/my-topic.js` file
+- 📡 Subscribes to the `my-topic` topic (from filename)
 - ⚡ Starts processing messages immediately
 - 🚫 No manual subscription or configuration needed
-
-## 🎯 **Application Scripts**
-
-### **Start the Application**
-
-The simplest way to start the Kafka consumer:
-
-```bash
-# Using npm script
-npm start
-
-# Or directly with Node.js
-node app.js
-
-# Or using the shell script
-./scripts/start.sh
-
-# Windows users
-scripts\start.bat
-```
-
-### **Stop the Application**
-
-```bash
-# Using npm script (Unix/Mac)
-npm run stop
-
-# Windows users
-npm run stop:win
-
-# Or using the shell script
-./scripts/stop.sh
-
-# Windows users
-scripts\stop.bat
-```
-
-### **What Happens When You Start**
-
-1. **🔍 Auto-Discovery**: Scans `processors/` directory for topic processors
-2. **📡 Auto-Subscription**: Automatically subscribes to all discovered topics
-3. **⚡ Message Processing**: Starts processing messages immediately
-4. **🛑 Graceful Shutdown**: Press `Ctrl+C` to stop gracefully
-
-### **Simple Configuration**
-
-Just create a `.env` file (or copy from `env.example`):
-
-```bash
-# Copy the example file
-cp env.example .env
-
-# Edit with your Kafka settings
-KAFKA_BROKERS=localhost:9092
-KAFKA_CLIENT_ID=my-app
-KAFKA_GROUP_ID=my-group
-```
 
 ## 🎯 Creating Processors
 
@@ -137,6 +90,63 @@ module.exports = UserEventsProcessor;
 - **File-Based Discovery**: Create a file, it's automatically loaded
 - **Smart Naming**: Topic name automatically derived from filename
 - **Instant Processing**: Messages start flowing immediately
+
+## 🎯 **Application Scripts**
+
+### **Start the Application**
+
+The simplest way to start the Kafka consumer:
+
+```bash
+# Using npm script
+npm start
+
+# Or directly with Node.js
+node app.js
+
+# Or using the shell script
+./scripts/start.sh
+
+# Windows users
+scripts\start.bat
+```
+
+### **Stop the Application**
+
+```bash
+# Unix/Mac
+npm run stop
+
+# Windows users
+npm run stop:win
+
+# Or using the shell script
+./scripts/stop.sh
+
+# Windows users
+scripts\stop.bat
+```
+
+### **What Happens When You Start**
+
+1. **🔍 Auto-Discovery**: Scans `processors/` directory for topic processors
+2. **📡 Auto-Subscription**: Automatically subscribes to all discovered topics
+3. **⚡ Message Processing**: Starts processing messages immediately
+4. **🛑 Graceful Shutdown**: Press `Ctrl+C` to stop gracefully
+
+### **Simple Configuration**
+
+Just create a `.env` file (or copy from `env.example`):
+
+```bash
+# Copy the example file
+cp env.example .env
+
+# Edit with your Kafka settings
+KAFKA_BROKERS=localhost:9092
+KAFKA_CLIENT_ID=my-app
+KAFKA_GROUP_ID=my-group
+```
 
 ## 📦 Installation
 
