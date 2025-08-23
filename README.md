@@ -110,6 +110,24 @@ await kafka.startConsumer();
 
 ## 📋 **Complete Example** 
 
+### **Quick Start (npm start)**
+```bash
+npm start
+```
+
+### **Programmatic Usage**
+```javascript
+const { KafkaAccessor } = require('kafka-data-accessor');
+
+const kafka = new KafkaAccessor();
+
+// 🚀 Start consumer - automatically subscribes to all processor topics
+await kafka.startConsumer();
+
+// 🎉 That's it! Messages start flowing immediately
+```
+
+### **Full Example with Producer and Consumer**
 ```javascript
 const { KafkaAccessor } = require('kafka-data-accessor');
 
