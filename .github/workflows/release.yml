@@ -48,7 +48,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: easynet-world/easy-kafka-accessor
+          images: easynetdocker/easy-kafka-accessor
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -67,5 +67,5 @@ jobs:
       - name: Output Docker image info
         run: |
           echo "✅ Docker image built and pushed successfully!"
-          echo "📦 Image: easynet-world/easy-kafka-accessor"
+          echo "📦 Image: easynetdocker/easy-kafka-accessor"
           echo "🏷️  Tags: ${{ steps.meta.outputs.tags }}"
