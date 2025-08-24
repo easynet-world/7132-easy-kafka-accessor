@@ -62,6 +62,32 @@ docker run -d --name easy-kafka-accessor \
 -v ./.env:/app/.env:ro
 ```
 
+### **Docker Image Versioning**
+The Docker image versioning is automatically synchronized with npm releases:
+
+| npm Release | Docker Image Tag | Description |
+|-------------|------------------|-------------|
+| `v1.0.0` | `easynetdocker/easy-kafka-accessor:v1.0.0` | Exact version match |
+| `v2.1.0` | `easynetdocker/easy-kafka-accessor:v2.1.0` | Exact version match |
+| `latest` | `easynetdocker/easy-kafka-accessor:latest` | Always latest release |
+
+**Pull specific versions:**
+```bash
+# Pull exact version
+docker pull easynetdocker/easy-kafka-accessor:v1.0.0
+
+# Pull latest release
+docker pull easynetdocker/easy-kafka-accessor:latest
+```
+
+**Run with specific version:**
+```bash
+docker run -d --name easy-kafka-accessor \
+  -e KAFKA_BROKERS=your-kafka:9092 \
+  -v /path/to/your/processors:/processors \
+  easynetdocker/easy-kafka-accessor:v1.0.0
+```
+
 ## ⚡ **Quick Start (3 Steps)** 
 
 ### **Step 1: Setup Environment**
