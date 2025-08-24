@@ -22,6 +22,46 @@
 npm install easy-kafka-accessor
 ```
 
+## 🐳 **Docker Support**
+
+### **Quick Docker Deployment**
+
+```bash
+# Build the Docker image
+docker build -t easy-kafka-accessor:latest .
+
+# Run with custom processors
+docker run -d --name easy-kafka-accessor \
+  -e KAFKA_BROKERS=your-kafka:9092 \
+  -v /path/to/your/processors:/processors \
+  easy-kafka-accessor:latest
+```
+
+### **Docker Features**
+- ✅ **Lightweight**: Based on Node.js 18 Alpine
+- ✅ **Easy Deployment**: Install from npm, no source code copying
+- ✅ **Custom Processors**: Mount your processors directory at `/processors`
+- ✅ **Environment Config**: All Kafka settings via environment variables
+- ✅ **Production Ready**: Optimized for containerized deployments
+
+### **Environment Variables**
+| Variable | Default | Description |
+|-----------|---------|-------------|
+| `KAFKA_BROKERS` | `localhost:9092` | Kafka broker addresses |
+| `KAFKA_CLIENT_ID` | `easy-kafka-accessor` | Client identifier |
+| `KAFKA_GROUP_ID` | `easy-kafka-accessor-group` | Consumer group ID |
+| `PROCESSORS_DIR` | `/processors` | Processors directory (Docker default) |
+| `LOG_LEVEL` | `info` | Logging level |
+
+### **Volume Mounting**
+```bash
+# Mount your custom processors
+-v /host/processors:/processors
+
+# Mount environment file (optional)
+-v ./.env:/app/.env:ro
+```
+
 ## ⚡ **Quick Start (3 Steps)** 
 
 ### **Step 1: Setup Environment**
