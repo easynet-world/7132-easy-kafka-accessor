@@ -1,5 +1,9 @@
 # Easy Kafka Accessor
 
+[![npm version](https://badge.fury.io/js/easy-kafka-accessor.svg)](https://badge.fury.io/js/easy-kafka-accessor)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D14.0.0-brightgreen.svg)](https://nodejs.org/)
+
 > **Kafka message processing that automatically discovers your topics and requires just ONE function to process everything.**
 
 ## ✨ **What This Does** 
