@@ -78,6 +78,20 @@ KAFKA_CLIENT_ID=my-app
 KAFKA_GROUP_ID=my-group
 ```
 
+## 🔧 Troubleshooting
+
+### Common Warnings
+
+**KafkaJS Partitioner Warning:**
+```bash
+# Add to your .env file to suppress
+KAFKAJS_NO_PARTITIONER_WARNING=1
+```
+
+**Negative Timeout Warning:**
+- Check your timeout configurations
+- Ensure all timeout values are positive numbers
+
 ## 📄 License
 
 MIT License
