@@ -2,6 +2,7 @@
   "name": "easy-kafka-accessor",
   "version": "1.0.17",
   "description": "Kafka producer and consumer service with message processing capabilities",
+  "_comment": "RELEASE POLICY: This project ONLY does patch releases (1.0.x) forever. No breaking changes, no major/minor versions. All commits trigger patch releases only.",
   "main": "index.js",
   "bin": {
     "easy-kafka-accessor": "index.js"

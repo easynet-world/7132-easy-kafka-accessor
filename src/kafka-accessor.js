@@ -165,6 +165,11 @@ class KafkaAccessor {
       await this.consumer.connect();
       this.logger.info('Kafka consumer initialized successfully');
       
+      // Ensure admin client is initialized before processor discovery
+      if (!this.admin) {
+        await this.initAdmin();
+      }
+      
       // Automatically discover and subscribe to topics with processors
       await this.autoSubscribeToProcessorTopics();
       
