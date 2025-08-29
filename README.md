@@ -17,10 +17,6 @@ npm install easy-kafka-accessor
 const { KafkaTopicProcessor } = require('easy-kafka-accessor');
 
 class UserEventsProcessor extends KafkaTopicProcessor {
-  constructor() {
-    super('user-events');
-  }
-
   async processMessage(message, metadata) {
     console.log('Processing:', message);
     return { processed: true };
@@ -68,8 +64,8 @@ await kafka.sendMessage('user-events', { userId: 123, action: 'login' });
 ## 📁 Processor Rules
 
 1. **Extend `KafkaTopicProcessor`**
-2. **Call `super('topic-name')` in constructor**
-3. **Implement `processMessage(message, metadata)`**
+2. **Implement `processMessage(message, metadata)`**
+3. **That's it!** Topic auto-detected from filename
 
 ## ⚙️ Config
 

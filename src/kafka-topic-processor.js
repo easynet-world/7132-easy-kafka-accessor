@@ -4,12 +4,22 @@
  */
 
 const winston = require('winston');
+const path = require('path');
 
 class KafkaTopicProcessor {
-  constructor(topic) {
-    this.topic = topic;
+  constructor() {
+    // Auto-detect topic name from the calling file path
+    const stackTrace = new Error().stack;
+    const callerFile = stackTrace.split('\n')[2].match(/\((.+):\d+:\d+\)/)?.[1];
     
-    // Initialize logger
+    if (callerFile) {
+      const fileName = path.basename(callerFile, path.extname(callerFile));
+      this.topic = fileName;
+    } else {
+      this.topic = 'unknown-topic';
+    }
+    
+    // Initialize logger with auto-detected topic
     this.logger = winston.createLogger({
       level: process.env.LOG_LEVEL || 'info',
       format: winston.format.combine(
@@ -17,7 +27,7 @@ class KafkaTopicProcessor {
         winston.format.errors({ stack: true }),
         winston.format.json()
       ),
-      defaultMeta: { service: 'kafka-topic-processor', topic },
+      defaultMeta: { service: 'kafka-topic-processor', topic: this.topic },
       transports: [
         new winston.transports.Console({
           format: winston.format.simple()
