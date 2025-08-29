@@ -35,7 +35,9 @@ jest.mock('kafkajs', () => ({
 jest.mock('winston', () => ({
   createLogger: jest.fn().mockReturnValue({
     info: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn()
   }),
   format: {
     combine: jest.fn(),
@@ -72,15 +74,21 @@ describe('KafkaAccessor', () => {
 
   afterEach(async () => {
     // Clean up auto-refresh timers to prevent hanging
-    if (accessor.processorRegistry) {
-      accessor.processorRegistry.stopAutoRefresh();
+    if (accessor && accessor.processorRegistry) {
+      try {
+        accessor.processorRegistry.stopAutoRefresh();
+      } catch (error) {
+        // Ignore cleanup errors
+      }
     }
     
     // Disconnect all clients
-    try {
-      await accessor.disconnect();
-    } catch (error) {
-      // Ignore disconnect errors in tests
+    if (accessor) {
+      try {
+        await accessor.disconnect();
+      } catch (error) {
+        // Ignore disconnect errors in tests
+      }
     }
   });
 
@@ -182,7 +190,11 @@ describe('KafkaAccessor', () => {
       expect(producer).toBeDefined();
       expect(mockKafka.producer).toHaveBeenCalledWith({
         allowAutoTopicCreation: true,
-        transactionTimeout: 30000
+        transactionTimeout: 30000,
+        retry: {
+          initialRetryTime: 100,
+          retries: 3
+        }
       });
     });
 
