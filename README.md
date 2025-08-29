@@ -1,14 +1,8 @@
 # Easy Kafka Accessor
 
-[![npm version](https://badge.fury.io/js/easy-kafka-accessor.svg)](https://badge.fury.io/js/easy-kafka-accessor)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D14.0.0-brightgreen.svg)](https://nodejs.org/)
-
 > **One function = Kafka consumer + producer + auto-discovery**
 
 Automatically discover Kafka topics and process messages with zero configuration.
-
-**📦 Release Policy: This project ONLY does patch releases (1.0.x) forever. No breaking changes, no major/minor versions.**
 
 ## 🚀 Quick Start
 
@@ -17,7 +11,7 @@ Automatically discover Kafka topics and process messages with zero configuration
 npm install easy-kafka-accessor
 ```
 
-### 2. Create a processor
+### 2. Create processor
 ```javascript
 // processors/user-events.js
 const { KafkaTopicProcessor } = require('easy-kafka-accessor');
@@ -28,98 +22,61 @@ class UserEventsProcessor extends KafkaTopicProcessor {
   }
 
   async processMessage(message, metadata) {
-    console.log('Processing user event:', message);
-    return { processed: true, data: message };
+    console.log('Processing:', message);
+    return { processed: true };
   }
 }
 
 module.exports = UserEventsProcessor;
 ```
 
-### 3. Start consuming
+### 3. Start
 ```bash
 KAFKA_BROKERS=kafka:9092 npm start
 ```
 
-**That's it!** The system automatically:
-- ✅ Discovers your `processors/user-events.js` file
-- ✅ Subscribes to the `user-events` topic
-- ✅ Starts processing messages immediately
+**Done!** System automatically discovers `user-events.js` → subscribes to `user-events` topic → starts processing messages.
 
 ## ✨ How It Works
 
-### File-Based Discovery
+**Filename = Topic Name**
 ```
 processors/user-events.js → Topic: "user-events"
 processors/orders.js      → Topic: "orders"
 processors/logs.js        → Topic: "logs"
 ```
 
-### Zero Configuration
-- **No manual topic setup** - topics are auto-created
-- **No manual subscription** - processors are auto-discovered
-- **No complex configuration** - just create processor files
+**Zero Configuration**
+- No manual topic setup
+- No manual subscription  
+- Just create processor files
 
 ## 🔧 Usage
 
-### Start Consumer
 ```javascript
 const { KafkaAccessor } = require('easy-kafka-accessor');
 
 const kafka = new KafkaAccessor();
-await kafka.startConsumer(); // Auto-discovers all processors
+
+// Start consumer (auto-discovers all processors)
+await kafka.startConsumer();
+
+// Send messages
+await kafka.sendMessage('user-events', { userId: 123, action: 'login' });
 ```
 
-### Send Messages
-```javascript
-await kafka.sendMessage('user-events', {
-  userId: 123,
-  action: 'login',
-  timestamp: new Date().toISOString()
-});
-```
+## 📁 Processor Rules
 
-### Check Topics
-```javascript
-const exists = await kafka.topicExists('user-events');
-await kafka.createTopic('my-topic', { numPartitions: 3 });
-```
-
-## 📁 Processor Structure
-
-Each processor file must:
 1. **Extend `KafkaTopicProcessor`**
-2. **Call `super(topicName)` in constructor**
-3. **Implement `processMessage(message, metadata)` method**
+2. **Call `super('topic-name')` in constructor**
+3. **Implement `processMessage(message, metadata)`**
 
-```javascript
-class MyProcessor extends KafkaTopicProcessor {
-  constructor() {
-    super('my-topic'); // Topic name from filename
-  }
-
-  async processMessage(message, metadata) {
-    // Your processing logic here
-    return { processed: true };
-  }
-}
-```
-
-## ⚙️ Configuration
-
-Set environment variables:
+## ⚙️ Config
 
 ```bash
 KAFKA_BROKERS=kafka:9092
 KAFKA_CLIENT_ID=my-app
 KAFKA_GROUP_ID=my-group
-LOG_LEVEL=info
-```
-
-## 🧪 Testing
-
-```bash
-npm test
 ```
 
 ## 📄 License
