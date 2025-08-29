@@ -19,21 +19,21 @@ npm install easy-kafka-accessor
 
 ### 2. Create a processor
 ```javascript
-// processors/krumbit.js
+// processors/user-events.js
 const { KafkaTopicProcessor } = require('easy-kafka-accessor');
 
-class KrumbitProcessor extends KafkaTopicProcessor {
+class UserEventsProcessor extends KafkaTopicProcessor {
   constructor() {
-    super('krumbit');
+    super('user-events');
   }
 
   async processMessage(message, metadata) {
-    console.log('Processing krumbit message:', message);
+    console.log('Processing user event:', message);
     return { processed: true, data: message };
   }
 }
 
-module.exports = KrumbitProcessor;
+module.exports = UserEventsProcessor;
 ```
 
 ### 3. Start consuming
@@ -42,17 +42,17 @@ KAFKA_BROKERS=kafka:9092 npm start
 ```
 
 **That's it!** The system automatically:
-- ✅ Discovers your `processors/krumbit.js` file
-- ✅ Subscribes to the `krumbit` topic
+- ✅ Discovers your `processors/user-events.js` file
+- ✅ Subscribes to the `user-events` topic
 - ✅ Starts processing messages immediately
 
 ## ✨ How It Works
 
 ### File-Based Discovery
 ```
-processors/krumbit.js     → Topic: "krumbit"
 processors/user-events.js → Topic: "user-events"
 processors/orders.js      → Topic: "orders"
+processors/logs.js        → Topic: "logs"
 ```
 
 ### Zero Configuration
@@ -72,7 +72,7 @@ await kafka.startConsumer(); // Auto-discovers all processors
 
 ### Send Messages
 ```javascript
-await kafka.sendMessage('krumbit', {
+await kafka.sendMessage('user-events', {
   userId: 123,
   action: 'login',
   timestamp: new Date().toISOString()
@@ -81,7 +81,7 @@ await kafka.sendMessage('krumbit', {
 
 ### Check Topics
 ```javascript
-const exists = await kafka.topicExists('krumbit');
+const exists = await kafka.topicExists('user-events');
 await kafka.createTopic('my-topic', { numPartitions: 3 });
 ```
 
