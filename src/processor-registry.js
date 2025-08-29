@@ -73,7 +73,7 @@ class ProcessorRegistry extends EventEmitter {
       }
     }, this.refreshInterval);
     
-    this.logger.info('Auto-refresh started', { processorsDir: this.processorsDir });
+    this.logger.debug('Auto-refresh started', { processorsDir: this.processorsDir });
   }
 
   /**
@@ -90,7 +90,7 @@ class ProcessorRegistry extends EventEmitter {
       this.watcher = null;
     }
     
-    this.logger.info('Auto-refresh stopped');
+    this.logger.debug('Auto-refresh stopped');
   }
 
   /**
@@ -99,7 +99,7 @@ class ProcessorRegistry extends EventEmitter {
    */
   setProcessorsDirectory(dir) {
     this.processorsDir = dir;
-    this.logger.info('Processors directory changed', { newDir: dir });
+    this.logger.debug('Processors directory changed', { newDir: dir });
     
     // Refresh processors from new directory
     if (this.autoRefresh) {
@@ -181,15 +181,15 @@ class ProcessorRegistry extends EventEmitter {
     const discoveredProcessors = [];
     const errors = [];
     
-    this.logger.info('Scanning processors directory', { dir: this.processorsDir });
+    this.logger.debug('Scanning processors directory', { dir: this.processorsDir });
     
     // First, get available Kafka topics if kafkaAccessor is provided
     let availableTopics = [];
     if (kafkaAccessor && kafkaAccessor.admin) {
       try {
-        this.logger.info('Scanning Kafka topics...');
+        this.logger.debug('Scanning Kafka topics...');
         availableTopics = await kafkaAccessor.admin.listTopics();
-        this.logger.info('Found Kafka topics', { count: availableTopics.length });
+        this.logger.debug('Found Kafka topics', { count: availableTopics.length });
       } catch (error) {
         this.logger.warn('Could not scan Kafka topics', { error: error.message });
         // Fall back to scanning processor files without topic validation
@@ -218,7 +218,7 @@ class ProcessorRegistry extends EventEmitter {
       
       // Only register processor if topic exists in Kafka (if we have topic list)
       if (availableTopics !== null && !availableTopics.includes(fileName)) {
-        this.logger.info('Skipping processor', { fileName, reason: 'topic not found in Kafka' });
+        this.logger.debug('Skipping processor', { fileName, reason: 'topic not found in Kafka' });
         continue;
       }
       
@@ -249,7 +249,7 @@ class ProcessorRegistry extends EventEmitter {
             }
             
             discoveredProcessors.push({ topic, filePath, result });
-            this.logger.info('Registered processor for topic', { topic });
+            this.logger.debug('Registered processor for topic', { topic });
           }
         } catch (error) {
           errors.push({ filePath, error: error.message });
@@ -264,7 +264,7 @@ class ProcessorRegistry extends EventEmitter {
       if (processorInfo && processorInfo.options.source === 'auto-discovery') {
         const filePath = processorInfo.options.filePath;
         if (!fs.existsSync(filePath)) {
-          this.logger.info('Removing processor for deleted file', { topic });
+          this.logger.debug('Removing processor for deleted file', { topic });
           this.deregisterProcessor(topic);
         }
       }
@@ -742,7 +742,7 @@ class ProcessorRegistry extends EventEmitter {
     }
 
     try {
-      this.logger.info('Processing message from topic', { topic });
+      this.logger.debug('Processing message from topic', { topic });
       const result = await processor.process(topic, message, metadata);
       
       return {

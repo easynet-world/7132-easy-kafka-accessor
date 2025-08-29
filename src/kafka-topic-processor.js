@@ -45,7 +45,7 @@ class KafkaTopicProcessor {
    */
   async process(topic, message, metadata) {
     try {
-      this.logger.info('Received message for topic', { 
+      this.logger.debug('Received message for topic', { 
         topic, 
         message: JSON.stringify(message, null, 2) 
       });
@@ -55,7 +55,7 @@ class KafkaTopicProcessor {
       const result = await this.processMessage(message, metadata);
       
       // Log success
-      this.logger.info('Message processed successfully', { 
+      this.logger.debug('Message processed successfully', { 
         topic, 
         result: JSON.stringify(result, null, 2) 
       });

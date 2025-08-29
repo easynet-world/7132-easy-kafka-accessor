@@ -55,7 +55,7 @@ class KafkaAccessor {
       if (!this.admin) {
         this.admin = this.kafka.admin();
         await this.admin.connect();
-        this.logger.info('Kafka admin client initialized successfully');
+        this.logger.debug('Kafka admin client initialized successfully');
       }
       return this.admin;
     } catch (error) {
@@ -136,13 +136,19 @@ class KafkaAccessor {
    */
   async initProducer() {
     try {
-      this.producer = this.kafka.producer({
-        allowAutoTopicCreation: true,
-        transactionTimeout: 30000
-      });
+      if (!this.producer) {
+        this.producer = this.kafka.producer({
+          allowAutoTopicCreation: true,
+          transactionTimeout: parseInt(process.env.PRODUCER_TIMEOUT) || 30000,
+          retry: {
+            initialRetryTime: 100,
+            retries: parseInt(process.env.PRODUCER_RETRY_ATTEMPTS) || 3
+          }
+        });
 
-      await this.producer.connect();
-      this.logger.info('Kafka producer initialized successfully');
+        await this.producer.connect();
+        this.logger.debug('Kafka producer initialized successfully');
+      }
       return this.producer;
     } catch (error) {
       this.logger.error('Failed to initialize producer', { error: error.message });
@@ -163,7 +169,7 @@ class KafkaAccessor {
       });
 
       await this.consumer.connect();
-      this.logger.info('Kafka consumer initialized successfully');
+      this.logger.debug('Kafka consumer initialized successfully');
       
       // Ensure admin client is initialized before processor discovery
       if (!this.admin) {
@@ -221,7 +227,7 @@ class KafkaAccessor {
               headers: message.headers
             };
 
-            this.logger.info('Processing message', {
+            this.logger.debug('Processing message', {
               topic,
               partition,
               offset: message.offset,
@@ -231,7 +237,7 @@ class KafkaAccessor {
             // Process using the registry
             await this.processorRegistry.processMessage(topic, payload, metadata);
 
-            this.logger.info('Message processed successfully', {
+            this.logger.debug('Message processed successfully', {
               topic,
               partition,
               offset: message.offset
@@ -359,7 +365,7 @@ class KafkaAccessor {
 
             await messageHandler(payload, metadata);
 
-            this.logger.info('Message processed successfully', {
+            this.logger.debug('Message processed successfully', {
               topic,
               partition,
               offset: message.offset
@@ -396,23 +402,23 @@ class KafkaAccessor {
     try {
       if (this.producer) {
         await this.producer.disconnect();
-        this.logger.info('Producer disconnected');
+        this.logger.debug('Producer disconnected');
       }
       
       if (this.consumer) {
         await this.consumer.disconnect();
-        this.logger.info('Consumer disconnected');
+        this.logger.debug('Consumer disconnected');
       }
 
       if (this.admin) {
         await this.admin.disconnect();
-        this.logger.info('Admin client disconnected');
+        this.logger.debug('Admin client disconnected');
       }
 
       // Stop processor registry auto-refresh
       if (this.processorRegistry) {
         this.processorRegistry.stopAutoRefresh();
-        this.logger.info('Processor registry auto-refresh stopped');
+        this.logger.debug('Processor registry auto-refresh stopped');
       }
     } catch (error) {
       this.logger.error('Error during disconnect', { error: error.message });
