@@ -6,6 +6,10 @@
 const KafkaTopicProcessor = require('../src/kafka-topic-processor');
 
 class SystemLogsProcessor extends KafkaTopicProcessor {
+  constructor() {
+    super('system-logs'); // Pass the topic name to parent constructor
+  }
+
   /**
    * Process system-level messages - simply print them out
    * @param {Object} message - The Kafka message object (JSON)
