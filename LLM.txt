@@ -1,0 +1,224 @@
+# Easy Kafka Accessor - AI Maintenance Guide
+
+## 🎯 Project Overview
+
+**Easy Kafka Accessor** is a Node.js package that provides a simplified interface for Kafka operations with automatic topic discovery and zero configuration setup. The package follows a **patch-only release policy** - only backward-compatible bug fixes and improvements are allowed.
+
+## 🏗️ Architecture & Core Components
+
+### 1. KafkaAccessor (src/kafka-accessor.js)
+- **Main class** that orchestrates Kafka operations
+- **Key methods**:
+  - `initProducer()`: Initialize Kafka producer
+  - `initConsumer()`: Initialize Kafka consumer  
+  - `initAdmin()`: Initialize Kafka admin client
+  - `sendMessage(topic, message)`: Send message to specific topic
+  - `getMessageFromTopic(topic)`: **Keep waiting** until message arrives from queue
+  - `autoSubscribeToProcessorTopics()`: Auto-discover and subscribe to processor topics
+  - `disconnect()`: Clean shutdown of all clients
+
+### 2. KafkaTopicProcessor (src/kafka-topic-processor.js)
+- **Base class** for all topic processors
+- **Auto-detects topic name** from filename (e.g., `user-events.js` → `user-events` topic)
+- **Key methods**:
+  - `processMessage(message, metadata)`: Override this to implement custom logic
+  - `createSuccessResult(message, data)`: Create success response
+  - `createErrorResult(error)`: Create error response
+  - `safeStringify(obj)`: Safe JSON stringification (handles circular references)
+  - `validateMessage(message)`: Validate incoming message structure
+
+### 3. ProcessorRegistry (src/processor-registry.js)
+- **Dynamic processor management** system
+- **Auto-discovers** processor files from `processors/` directory
+- **Loads processors** dynamically at runtime
+- **Validates processor** structure and requirements
+
+### 4. SystemLogsProcessor (processors/system-logs.js)
+- **Example implementation** of KafkaTopicProcessor
+- **Demonstrates** proper processor structure
+- **Logs system messages** with metadata
+
+## 🔧 Key Features
+
+### 1. **Keep Waiting Message Retrieval**
+- `getMessageFromTopic(topic)` method waits indefinitely until messages arrive
+- **Critical feature** - must be maintained and documented
+- Enables reliable message processing without polling
+
+### 2. **Zero Configuration Setup**
+- **Auto-loads configuration** from `.env` file
+- **No manual broker setup** required
+- **Automatic topic discovery** from processor filenames
+
+### 3. **Auto-Discovery System**
+- **Filename = Topic Name** mapping
+- `processors/user-events.js` → automatically subscribes to `user-events` topic
+- **No manual subscription** required
+
+### 4. **Error Handling & Resilience**
+- **Graceful degradation** when clients fail
+- **Circular reference handling** in logging
+- **Robust disconnect** and cleanup procedures
+
+## 🧪 Testing Strategy
+
+### 1. **Test Coverage Requirements**
+- **100% test success rate** must be maintained
+- **All test suites** must pass: KafkaAccessor, ProcessorRegistry, Processors, KafkaTopicProcessor
+- **Code coverage** should remain above 90%
+
+### 2. **Test Structure**
+- `tests/kafka-accessor.test.js`: Tests main KafkaAccessor functionality
+- `tests/processor-registry.test.js`: Tests processor discovery and management
+- `tests/kafka-topic-processor.test.js`: Tests base processor functionality
+- `tests/processors.test.js`: Tests specific processor implementations
+
+### 3. **Testing Best Practices**
+- **Mock external dependencies** (KafkaJS, Winston)
+- **Test isolation** - no test interference
+- **Proper mock restoration** after each test
+- **Comprehensive error scenarios** coverage
+
+## 🚀 Release & Deployment
+
+### 1. **Release Policy**
+- **ONLY patch releases** (1.0.x) - no breaking changes
+- **Automated workflow** triggers on push to master
+- **Semantic versioning** with automated release notes
+
+### 2. **CI/CD Pipeline**
+- **GitHub Actions** workflow: `.github/workflows/release.yml`
+- **Automated testing** before release
+- **Docker image** building and pushing
+- **NPM package** publishing
+
+### 3. **Release Process**
+- Push to `master` branch
+- Automated workflow runs tests
+- Creates new patch version (e.g., 1.0.31)
+- Builds and pushes Docker image
+- Updates NPM package
+
+## 🐛 Issue Resolution Patterns
+
+### 1. **Test Failures**
+- **Always run `npm test`** first to identify issues
+- **Fix failing tests** before any other changes
+- **Maintain 100% test success** rate
+- **Add test cases** for new functionality
+
+### 2. **Common Issues & Solutions**
+- **Consumer not initialized**: Ensure `initConsumer()` called before `subscribe()`
+- **Mock interference**: Use proper mock restoration and isolation
+- **Circular references**: Use `safeStringify()` method for logging
+- **Test isolation**: Store and restore original mock implementations
+
+### 3. **Code Quality Standards**
+- **No breaking changes** - maintain backward compatibility
+- **Proper error handling** with graceful degradation
+- **Comprehensive logging** with safe stringification
+- **Clean resource management** and cleanup
+
+## 📁 File Structure
+
+```
+easy-kafka-accessor/
+├── src/
+│   ├── kafka-accessor.js          # Main Kafka orchestrator
+│   ├── kafka-topic-processor.js   # Base processor class
+│   └── processor-registry.js      # Dynamic processor management
+├── processors/
+│   └── system-logs.js             # Example processor implementation
+├── tests/                          # Comprehensive test suite
+├── .github/workflows/release.yml   # Automated release pipeline
+├── package.json                    # Dependencies and scripts
+├── README.md                       # User documentation
+└── LLM.txt                        # This AI maintenance guide
+```
+
+## 🔄 Maintenance Workflow
+
+### 1. **When Issues Arise**
+1. **Run tests** to identify failing components
+2. **Analyze error patterns** and root causes
+3. **Fix issues** while maintaining backward compatibility
+4. **Add/update tests** to prevent regression
+5. **Verify 100% test success** before committing
+
+### 2. **When Adding Features**
+1. **Ensure backward compatibility** (no breaking changes)
+2. **Add comprehensive tests** for new functionality
+3. **Update documentation** in README.md
+4. **Follow existing patterns** and architecture
+5. **Maintain test coverage** above 90%
+
+### 3. **When Updating Dependencies**
+1. **Test thoroughly** after dependency updates
+2. **Ensure no breaking changes** introduced
+3. **Update tests** if API changes occur
+4. **Maintain patch-only** release policy
+
+## 🎯 Critical Success Factors
+
+### 1. **Must Maintain**
+- **100% test success rate** across all test suites
+- **Backward compatibility** - no breaking changes
+- **Patch-only releases** (1.0.x format)
+- **Keep waiting functionality** in `getMessageFromTopic()`
+- **Zero configuration** setup experience
+
+### 2. **Must Document**
+- **Keep waiting feature** in README
+- **Configuration options** in .env examples
+- **Usage patterns** and examples
+- **Troubleshooting** common issues
+
+### 3. **Must Test**
+- **All public methods** and edge cases
+- **Error scenarios** and graceful degradation
+- **Resource cleanup** and disconnect procedures
+- **Mock interactions** and test isolation
+
+## 🚨 Emergency Procedures
+
+### 1. **If Tests Fail**
+- **Stop all changes** immediately
+- **Run `npm test`** to identify scope of failures
+- **Fix tests systematically** starting with core functionality
+- **Verify fixes** before proceeding
+
+### 2. **If Breaking Changes Detected**
+- **Revert immediately** to last working version
+- **Maintain patch-only** release policy
+- **Ensure backward compatibility** at all costs
+
+### 3. **If Release Fails**
+- **Check workflow logs** for specific errors
+- **Fix underlying issues** in code or configuration
+- **Re-push** to trigger new release attempt
+
+## 💡 AI Assistant Guidelines
+
+### 1. **Always Do**
+- **Run tests first** before making any changes
+- **Maintain 100% test success** rate
+- **Follow existing patterns** and architecture
+- **Ensure backward compatibility**
+- **Update documentation** for any changes
+
+### 2. **Never Do**
+- **Introduce breaking changes**
+- **Skip testing** before committing
+- **Modify release policy** (must stay patch-only)
+- **Remove keep waiting functionality**
+- **Break zero configuration** setup
+
+### 3. **When in Doubt**
+- **Run `npm test`** to verify current state
+- **Check existing patterns** in similar code
+- **Maintain consistency** with established architecture
+- **Preserve user experience** and simplicity
+
+---
+
+**Remember**: This package is designed for **simplicity and reliability**. Every change must maintain these core principles while ensuring 100% test success and backward compatibility. The **keep waiting functionality** is a key differentiator and must be preserved and documented.
