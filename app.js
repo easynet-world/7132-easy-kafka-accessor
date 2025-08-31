@@ -6,7 +6,7 @@
  */
 
 require('dotenv').config();
-const { KafkaAccessor } = require('./src/kafka-accessor');
+const KafkaAccessor = require('./src/kafka-accessor');
 
 async function main() {
   try {
