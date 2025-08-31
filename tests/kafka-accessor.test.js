@@ -856,6 +856,33 @@ describe('KafkaAccessor', () => {
         }]
       });
     });
+
+    it('should handle undefined topicConfig gracefully without Kafka admin error', async () => {
+      const payload = { message: 'test' };
+      const options = { topicConfig: undefined };
+      
+      // Mock admin to return success (no error)
+      const mockAdmin = {
+        isConnected: jest.fn().mockReturnValue(true),
+        createTopics: jest.fn().mockResolvedValue([{ topic: 'test-topic', errorCode: 0 }])
+      };
+      
+      accessor.admin = mockAdmin;
+      
+      // This should work without throwing the "Invalid topics array undefined" error
+      const result = await accessor.sendMessage('test-topic', payload, options);
+      
+      // Verify that createTopics was called with valid topicConfig
+      expect(mockAdmin.createTopics).toHaveBeenCalledWith([{
+        topic: 'test-topic',
+        numPartitions: 1,
+        replicationFactor: 1,
+        configEntries: []
+      }]);
+      
+      // Reset accessor.admin to prevent affecting other tests
+      accessor.admin = null;
+    });
   });
 
   describe('subscribeToTopic edge cases', () => {

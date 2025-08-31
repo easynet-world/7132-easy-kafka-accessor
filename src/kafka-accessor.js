@@ -138,12 +138,20 @@ class KafkaAccessor {
         await this.admin.connect();
       }
 
+      // Ensure options is an object and filter out undefined values
+      const safeOptions = options && typeof options === 'object' ? options : {};
+      
       const topicConfig = {
         topic,
-        numPartitions: options.numPartitions || 1,
-        replicationFactor: options.replicationFactor || 1,
-        configEntries: options.configEntries || []
+        numPartitions: safeOptions.numPartitions || 1,
+        replicationFactor: safeOptions.replicationFactor || 1,
+        configEntries: safeOptions.configEntries || []
       };
+
+      // Additional validation to ensure no undefined values in topicConfig
+      if (topicConfig.numPartitions === undefined || topicConfig.replicationFactor === undefined || topicConfig.configEntries === undefined) {
+        throw new Error('Invalid topic configuration: all values must be defined');
+      }
 
       // Validate topicConfig before calling createTopics
       if (!topicConfig.topic || typeof topicConfig.topic !== 'string') {
@@ -333,16 +341,20 @@ class KafkaAccessor {
     }
 
     try {
+      // Ensure options is an object and topicConfig is properly handled
+      const safeOptions = options && typeof options === 'object' ? options : {};
+      const topicConfig = safeOptions.topicConfig && typeof safeOptions.topicConfig === 'object' ? safeOptions.topicConfig : {};
+      
       // First, ensure the topic exists
-      await this.ensureTopicExists(topic, options.topicConfig);
+      await this.ensureTopicExists(topic, topicConfig);
 
       const message = {
         topic,
         messages: [{
-          key: options.key || null,
+          key: safeOptions.key || null,
           value: JSON.stringify(payload),
-          partition: options.partition || 0,
-          timestamp: options.timestamp || Date.now()
+          partition: safeOptions.partition || 0,
+          timestamp: safeOptions.timestamp || Date.now()
         }]
       };
 
