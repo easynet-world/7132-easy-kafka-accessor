@@ -60,7 +60,8 @@ class KafkaTopicProcessor {
         result: JSON.stringify(result, null, 2) 
       });
       
-      return this.createSuccessResult(result);
+      // Fix: Pass the message and spread the result as additional data
+      return this.createSuccessResult(result.message || 'Message processed successfully', result);
     } catch (error) {
       // Log error
       this.logger.error('Error processing message for topic', { 

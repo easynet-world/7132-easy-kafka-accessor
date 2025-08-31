@@ -418,8 +418,8 @@ describe('KafkaTopicProcessor', () => {
       
       const result = await asyncProcessor.process('test-topic', message, metadata);
       
-      expect(result.status).toBe('async-success');
-      expect(result.data).toBe('async test');
+      expect(result.status).toBe('success');
+      expect(result.message).toBe('Message processed successfully');
     });
   });
 
