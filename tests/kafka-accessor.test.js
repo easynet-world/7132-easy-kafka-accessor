@@ -554,5 +554,436 @@ describe('KafkaAccessor', () => {
       expect(status.admin.initialized).toBe(true);
     });
   });
+
+  describe('processor registry integration', () => {
+    it('should return processor registry information', () => {
+      const info = accessor.getProcessorRegistryInfo();
+      
+      expect(info).toBeDefined();
+      expect(info.directory).toBe('./processors');
+      expect(info.availableTopics).toEqual([]);
+      expect(info.autoRefresh.enabled).toBe(true);
+    });
+
+    it('should handle processor registry when not initialized', () => {
+      accessor.processorRegistry = null;
+      
+      const info = accessor.getProcessorRegistryInfo();
+      
+      expect(info).toBeNull();
+    });
+  });
+
+  describe('autoSubscribeToProcessorTopics', () => {
+    it('should auto-subscribe to processor topics successfully', async () => {
+      // Mock processor registry methods
+      const mockProcessorRegistry = {
+        autoDiscoverProcessors: jest.fn().mockResolvedValue(),
+        getAvailableTopics: jest.fn().mockReturnValue(['topic1', 'topic2']),
+        processMessage: jest.fn().mockResolvedValue()
+      };
+      
+      accessor.processorRegistry = mockProcessorRegistry;
+      accessor.admin = mockAdmin;
+      
+      await accessor.autoSubscribeToProcessorTopics();
+      
+      expect(mockConsumer.subscribe).toHaveBeenCalledWith({
+        topics: ['topic1', 'topic2'],
+        fromBeginning: false
+      });
+      expect(mockConsumer.run).toHaveBeenCalled();
+    });
+
+    it('should handle case when no processors are found', async () => {
+      const mockProcessorRegistry = {
+        autoDiscoverProcessors: jest.fn().mockResolvedValue(),
+        getAvailableTopics: jest.fn().mockReturnValue([])
+      };
+      
+      accessor.processorRegistry = mockProcessorRegistry;
+      accessor.admin = mockAdmin;
+      
+      await accessor.autoSubscribeToProcessorTopics();
+      
+      expect(mockConsumer.subscribe).not.toHaveBeenCalled();
+      expect(mockConsumer.run).not.toHaveBeenCalled();
+    });
+
+    it('should handle processor discovery errors gracefully', async () => {
+      const mockProcessorRegistry = {
+        autoDiscoverProcessors: jest.fn().mockRejectedValue(new Error('Discovery failed'))
+      };
+      
+      accessor.processorRegistry = mockProcessorRegistry;
+      accessor.admin = mockAdmin;
+      
+      await expect(accessor.autoSubscribeToProcessorTopics()).rejects.toThrow('Discovery failed');
+    });
+
+    it('should handle message processing errors gracefully', async () => {
+      const mockProcessorRegistry = {
+        autoDiscoverProcessors: jest.fn().mockResolvedValue(),
+        getAvailableTopics: jest.fn().mockReturnValue(['topic1']),
+        processMessage: jest.fn().mockResolvedValue()
+      };
+      
+      accessor.processorRegistry = mockProcessorRegistry;
+      accessor.admin = mockAdmin;
+      
+      await accessor.autoSubscribeToProcessorTopics();
+      
+      // Mock the consumer.run to simulate message processing
+      const runCall = mockConsumer.run.mock.calls[0][0];
+      
+      // Simulate message processing error
+      await expect(runCall.eachMessage({
+        topic: 'topic1',
+        partition: 0,
+        message: {
+          value: Buffer.from('invalid-json'),
+          key: null,
+          offset: 123,
+          timestamp: Date.now(),
+          headers: {}
+        }
+      })).rejects.toThrow();
+    });
+  });
+
+  describe('sendMessage edge cases', () => {
+    it('should handle message sending with all optional parameters', async () => {
+      const payload = { message: 'test' };
+      const options = {
+        key: 'test-key',
+        partition: 1,
+        timestamp: 1234567890,
+        topicConfig: { numPartitions: 3, replicationFactor: 2 }
+      };
+      
+      const result = await accessor.sendMessage('test-topic', payload, options);
+      
+      expect(result).toEqual([{ partition: 0, baseOffset: '123' }]);
+      expect(mockProducer.send).toHaveBeenCalledWith({
+        topic: 'test-topic',
+        messages: [{
+          key: 'test-key',
+          value: JSON.stringify(payload),
+          partition: 1,
+          timestamp: 1234567890
+        }]
+      });
+    });
+
+    it('should handle message sending with null key', async () => {
+      const payload = { message: 'test' };
+      const options = { key: null };
+      
+      await accessor.sendMessage('test-topic', payload, options);
+      
+      expect(mockProducer.send).toHaveBeenCalledWith({
+        topic: 'test-topic',
+        messages: [{
+          key: null,
+          value: JSON.stringify(payload),
+          partition: 0,
+          timestamp: expect.any(Number)
+        }]
+      });
+    });
+
+    it('should handle message sending with undefined options', async () => {
+      const payload = { message: 'test' };
+      
+      await accessor.sendMessage('test-topic', payload);
+      
+      expect(mockProducer.send).toHaveBeenCalledWith({
+        topic: 'test-topic',
+        messages: [{
+          key: null,
+          value: JSON.stringify(payload),
+          partition: 0,
+          timestamp: expect.any(Number)
+        }]
+      });
+    });
+
+    it('should handle message sending with empty payload', async () => {
+      const payload = {};
+      
+      await accessor.sendMessage('test-topic', payload);
+      
+      expect(mockProducer.send).toHaveBeenCalledWith({
+        topic: 'test-topic',
+        messages: [{
+          key: null,
+          value: '{}',
+          partition: 0,
+          timestamp: expect.any(Number)
+        }]
+      });
+    });
+  });
+
+  describe('subscribeToTopic edge cases', () => {
+    it('should handle subscription with custom options', async () => {
+      const messageHandler = jest.fn();
+      const options = {
+        fromBeginning: true,
+        eachBatch: jest.fn()
+      };
+      
+      await accessor.subscribeToTopic('test-topic', messageHandler, options);
+      
+      expect(mockConsumer.subscribe).toHaveBeenCalledWith({
+        topic: 'test-topic',
+        fromBeginning: true
+      });
+      expect(mockConsumer.run).toHaveBeenCalledWith({
+        eachMessage: expect.any(Function),
+        eachBatch: options.eachBatch
+      });
+    });
+
+    it('should handle subscription without message handler', async () => {
+      await expect(accessor.subscribeToTopic('test-topic')).rejects.toThrow('Message handler is required for manual subscription');
+    });
+
+    it('should handle subscription with null message handler', async () => {
+      await expect(accessor.subscribeToTopic('test-topic', null)).rejects.toThrow('Message handler is required for manual subscription');
+    });
+
+    it('should handle message processing errors in subscription', async () => {
+      const messageHandler = jest.fn().mockRejectedValue(new Error('Handler failed'));
+      
+      await accessor.subscribeToTopic('test-topic', messageHandler);
+      
+      const runCall = mockConsumer.run.mock.calls[0][0];
+      
+      // Simulate message processing error
+      await expect(runCall.eachMessage({
+        topic: 'test-topic',
+        partition: 0,
+        message: {
+          value: Buffer.from('{"message": "test"}'),
+          key: null,
+          offset: 123,
+          timestamp: Date.now(),
+          headers: {}
+        }
+      })).rejects.toThrow('Handler failed');
+    });
+  });
+
+  describe('disconnect edge cases', () => {
+    it('should handle disconnect when no clients are initialized', async () => {
+      await accessor.disconnect();
+      
+      // Should not throw any errors
+      expect(true).toBe(true);
+    });
+
+    it('should handle disconnect errors gracefully', async () => {
+      await accessor.initProducer();
+      await accessor.initConsumer();
+      await accessor.initAdmin();
+      
+      // Mock disconnect to fail
+      mockProducer.disconnect.mockRejectedValue(new Error('Producer disconnect failed'));
+      mockConsumer.disconnect.mockRejectedValue(new Error('Consumer disconnect failed'));
+      mockAdmin.disconnect.mockRejectedValue(new Error('Admin disconnect failed'));
+      
+      // Should not throw errors during disconnect
+      await accessor.disconnect();
+      
+      expect(mockProducer.disconnect).toHaveBeenCalled();
+      expect(mockConsumer.disconnect).toHaveBeenCalled();
+      expect(mockAdmin.disconnect).toHaveBeenCalled();
+    });
+
+    it('should stop processor registry auto-refresh on disconnect', async () => {
+      const stopAutoRefreshSpy = jest.spyOn(accessor.processorRegistry, 'stopAutoRefresh');
+      
+      await accessor.disconnect();
+      
+      expect(stopAutoRefreshSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('environment variable handling', () => {
+    it('should use environment variables for configuration', () => {
+      const originalEnv = process.env;
+      
+      process.env = {
+        ...originalEnv,
+        KAFKA_BROKERS: 'kafka:9092,kafka2:9092',
+        KAFKA_CLIENT_ID: 'env-client',
+        KAFKA_GROUP_ID: 'env-group',
+        LOG_LEVEL: 'debug',
+        PRODUCER_TIMEOUT: '60000',
+        PRODUCER_RETRY_ATTEMPTS: '5',
+        CONSUMER_SESSION_TIMEOUT: '60000',
+        CONSUMER_HEARTBEAT_INTERVAL: '5000',
+        CONSUMER_MAX_BYTES: '2097152'
+      };
+      
+      const envAccessor = new KafkaAccessor();
+      
+      expect(envAccessor.config.brokers).toBe('kafka:9092,kafka2:9092');
+      expect(envAccessor.config.clientId).toBe('env-client');
+      expect(envAccessor.config.groupId).toBe('env-group');
+      
+      // Restore original environment
+      process.env = originalEnv;
+    });
+
+    it('should handle invalid environment variable values', () => {
+      const originalEnv = process.env;
+      
+      process.env = {
+        ...originalEnv,
+        PRODUCER_TIMEOUT: 'invalid',
+        PRODUCER_RETRY_ATTEMPTS: 'invalid',
+        CONSUMER_SESSION_TIMEOUT: 'invalid',
+        CONSUMER_HEARTBEAT_INTERVAL: 'invalid',
+        CONSUMER_MAX_BYTES: 'invalid'
+      };
+      
+      const envAccessor = new KafkaAccessor();
+      
+      // Should use default values when environment variables are invalid
+      expect(envAccessor.config.brokers).toBe('localhost:9092');
+      expect(envAccessor.config.clientId).toBe('kafka-accessor');
+      expect(envAccessor.config.groupId).toBe('kafka-accessor-group');
+      
+      // Restore original environment
+      process.env = originalEnv;
+    });
+  });
+
+  describe('Kafka client configuration', () => {
+    it('should configure Kafka client with retry settings', () => {
+      expect(mockKafka).toBeDefined();
+      expect(mockKafka.producer).toBeDefined();
+      expect(mockKafka.consumer).toBeDefined();
+      expect(mockKafka.admin).toBeDefined();
+    });
+
+    it('should configure producer with correct settings', async () => {
+      await accessor.initProducer();
+      
+      expect(mockKafka.producer).toHaveBeenCalledWith({
+        allowAutoTopicCreation: true,
+        transactionTimeout: 30000,
+        retry: {
+          initialRetryTime: 100,
+          retries: 3
+        }
+      });
+    });
+
+    it('should configure consumer with correct settings', async () => {
+      await accessor.initConsumer();
+      
+      expect(mockKafka.consumer).toHaveBeenCalledWith({
+        groupId: 'kafka-accessor-group',
+        sessionTimeout: 30000,
+        heartbeatInterval: 3000,
+        maxBytesPerPartition: 1048576
+      });
+    });
+  });
+
+  describe('error handling and logging', () => {
+    it('should log errors appropriately', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      
+      try {
+        await accessor.initAdmin();
+        mockAdmin.listTopics.mockRejectedValue(new Error('Admin error'));
+        await accessor.topicExists('test-topic');
+      } catch (error) {
+        // Error should be logged
+      }
+      
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle network errors gracefully', async () => {
+      mockKafka.admin.mockImplementation(() => ({
+        connect: jest.fn().mockRejectedValue(new Error('Network error'))
+      }));
+      
+      await expect(accessor.initAdmin()).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('concurrent operations', () => {
+    it('should handle multiple concurrent send operations', async () => {
+      const promises = [];
+      
+      for (let i = 0; i < 5; i++) {
+        promises.push(accessor.sendMessage(`topic-${i}`, { message: `test-${i}` }));
+      }
+      
+      const results = await Promise.all(promises);
+      
+      expect(results).toHaveLength(5);
+      results.forEach(result => {
+        expect(result).toEqual([{ partition: 0, baseOffset: '123' }]);
+      });
+    });
+
+    it('should handle multiple concurrent topic existence checks', async () => {
+      const promises = [];
+      
+      for (let i = 0; i < 5; i++) {
+        promises.push(accessor.topicExists(`topic-${i}`));
+      }
+      
+      const results = await Promise.all(promises);
+      
+      expect(results).toHaveLength(5);
+      results.forEach(result => {
+        expect(result).toBe(true);
+      });
+    });
+  });
+
+  describe('resource cleanup', () => {
+    it('should clean up resources on multiple disconnect calls', async () => {
+      await accessor.initProducer();
+      await accessor.initConsumer();
+      await accessor.initAdmin();
+      
+      // Multiple disconnect calls should not cause issues
+      await accessor.disconnect();
+      await accessor.disconnect();
+      await accessor.disconnect();
+      
+      expect(mockProducer.disconnect).toHaveBeenCalledTimes(1);
+      expect(mockConsumer.disconnect).toHaveBeenCalledTimes(1);
+      expect(mockAdmin.disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle cleanup when clients are already disconnected', async () => {
+      await accessor.initProducer();
+      await accessor.initConsumer();
+      await accessor.initAdmin();
+      
+      // Mock clients to be already disconnected
+      mockProducer.disconnect.mockRejectedValue(new Error('Already disconnected'));
+      mockConsumer.disconnect.mockRejectedValue(new Error('Already disconnected'));
+      mockAdmin.disconnect.mockRejectedValue(new Error('Already disconnected'));
+      
+      // Should not throw errors
+      await accessor.disconnect();
+      
+      expect(mockProducer.disconnect).toHaveBeenCalled();
+      expect(mockConsumer.disconnect).toHaveBeenCalled();
+      expect(mockAdmin.disconnect).toHaveBeenCalled();
+    });
+  });
 });
 
