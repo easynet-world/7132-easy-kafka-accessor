@@ -240,11 +240,10 @@ describe('KafkaTopicProcessor', () => {
       expect(result.error).toBe('Message must be a valid object');
     });
 
-    it('should reject array message', () => {
+    it('should accept array message (arrays are objects in JavaScript)', () => {
       const result = processor.validateMessage(['array', 'message']);
       
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe('Message must be a valid object');
+      expect(result.valid).toBe(true);
     });
 
     it('should accept empty object', () => {

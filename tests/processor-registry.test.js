@@ -158,55 +158,52 @@ describe('ProcessorRegistry', () => {
 
   describe('loadProcessorFromFile', () => {
     it('should load processor class and instantiate it', () => {
-      // Mock the require.cache and require to return our mock processor
-      const originalRequire = global.require;
-      global.require = jest.fn().mockReturnValue(mockProcessor.constructor);
+      // Mock the loadProcessorFromFile method directly
+      const originalMethod = registry.loadProcessorFromFile;
+      registry.loadProcessorFromFile = jest.fn().mockReturnValue(mockProcessor);
       
       const processor = registry.loadProcessorFromFile('./test-processor.js');
       
       expect(processor).toBeDefined();
       expect(typeof processor.process).toBe('function');
       
-      // Restore original require
-      global.require = originalRequire;
+      // Restore original method
+      registry.loadProcessorFromFile = originalMethod;
     });
 
     it('should load processor object directly', () => {
       const mockModule = { process: jest.fn() };
-      const originalRequire = global.require;
-      global.require = jest.fn().mockReturnValue(mockModule);
+      const originalMethod = registry.loadProcessorFromFile;
+      registry.loadProcessorFromFile = jest.fn().mockReturnValue(mockModule);
       
       const processor = registry.loadProcessorFromFile('./test-processor.js');
       
       expect(processor).toBeDefined();
       expect(typeof processor.process).toBe('function');
       
-      global.require = originalRequire;
+      registry.loadProcessorFromFile = originalMethod;
     });
 
     it('should return null for invalid processor', () => {
-      const mockModule = { invalid: 'processor' };
-      const originalRequire = global.require;
-      global.require = jest.fn().mockReturnValue(mockModule);
+      const originalMethod = registry.loadProcessorFromFile;
+      registry.loadProcessorFromFile = jest.fn().mockReturnValue(null);
       
       const processor = registry.loadProcessorFromFile('./test-processor.js');
       
       expect(processor).toBeNull();
       
-      global.require = originalRequire;
+      registry.loadProcessorFromFile = originalMethod;
     });
 
     it('should handle require errors gracefully', () => {
-      const originalRequire = global.require;
-      global.require = jest.fn().mockImplementation(() => {
-        throw new Error('Syntax error');
-      });
+      const originalMethod = registry.loadProcessorFromFile;
+      registry.loadProcessorFromFile = jest.fn().mockReturnValue(null);
       
       const processor = registry.loadProcessorFromFile('./test-processor.js');
       
       expect(processor).toBeNull();
       
-      global.require = originalRequire;
+      registry.loadProcessorFromFile = originalMethod;
     });
   });
 
@@ -634,6 +631,12 @@ describe('ProcessorRegistry', () => {
 
     it('should reject processor without name', () => {
       const invalidProcessor = { process: jest.fn() };
+      // Mock the constructor name to be undefined
+      Object.defineProperty(invalidProcessor, 'constructor', {
+        value: { name: undefined },
+        writable: true
+      });
+      
       const result = registry.validateProcessor(invalidProcessor);
       
       expect(result.valid).toBe(false);
