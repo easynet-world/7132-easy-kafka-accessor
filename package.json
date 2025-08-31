@@ -51,6 +51,8 @@
     "src/",
     "processors/",
     "index.js",
+    "app.js",
+    "scripts/",
     "README.md",
     "env.example"
   ],
