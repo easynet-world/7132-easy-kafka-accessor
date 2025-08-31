@@ -49,7 +49,6 @@ processors/logs.js        → Topic: "logs"
 - No manual topic setup
 - No manual subscription  
 - Just create processor files
-- **Automatic message waiting** - keeps listening until messages arrive
 
 ## 🔧 Usage
 
