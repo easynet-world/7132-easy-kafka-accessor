@@ -396,6 +396,123 @@ class KafkaAccessor {
   }
 
   /**
+   * Get a message from a specified topic, blocking until one is available
+   * @param {string} topic - The topic name to consume from
+   * @param {Object} options - Optional configuration
+   * @param {string} options.groupId - Consumer group ID (defaults to client ID)
+   * @param {number} options.timeout - Maximum time to wait in milliseconds (optional)
+   * @returns {Promise<Object>} The message object with key, value, headers, etc.
+   */
+  async getMessageFromTopic(topic, options = {}) {
+    const groupId = options.groupId || this.config.clientId;
+    const timeout = options.timeout;
+    
+    // Create a dedicated consumer for this specific operation
+    const dedicatedConsumer = this.kafka.consumer({
+      groupId: `${groupId}-${Date.now()}`, // Ensure unique group ID
+      sessionTimeout: parseInt(process.env.CONSUMER_SESSION_TIMEOUT) || 30000,
+      heartbeatInterval: parseInt(process.env.CONSUMER_HEARTBEAT_INTERVAL) || 3000,
+      maxBytesPerPartition: parseInt(process.env.CONSUMER_MAX_BYTES) || 1048576
+    });
+
+    try {
+      await dedicatedConsumer.connect();
+      this.logger.debug('Dedicated consumer connected for topic', { topic, groupId });
+
+      // Subscribe to the specific topic
+      await dedicatedConsumer.subscribe({
+        topic,
+        fromBeginning: false
+      });
+
+      // Create a promise that resolves when a message is received
+      const messagePromise = new Promise((resolve, reject) => {
+        let messageReceived = false;
+        let timeoutId = null;
+
+        // Set up timeout if specified
+        if (timeout) {
+          timeoutId = setTimeout(() => {
+            if (!messageReceived) {
+              messageReceived = true;
+              reject(new Error(`Timeout waiting for message from topic: ${topic}`));
+            }
+          }, timeout);
+        }
+
+        // Run the consumer
+        dedicatedConsumer.run({
+          eachMessage: async ({ topic, partition, message }) => {
+            if (messageReceived) return; // Prevent multiple message processing
+            
+            messageReceived = true;
+            
+            // Clear timeout if message received
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+            }
+
+            try {
+              const payload = JSON.parse(message.value.toString());
+              const key = message.key ? message.key.toString() : null;
+
+              const messageData = {
+                topic,
+                partition,
+                offset: message.offset,
+                key,
+                value: payload,
+                timestamp: message.timestamp,
+                headers: message.headers
+              };
+
+              this.logger.debug('Message received from topic', {
+                topic,
+                partition,
+                offset: message.offset,
+                key
+              });
+
+              resolve(messageData);
+            } catch (error) {
+              reject(new Error(`Failed to parse message: ${error.message}`));
+            }
+          }
+        }).catch(reject);
+      });
+
+      // Wait for the message
+      const message = await messagePromise;
+      
+      this.logger.info('Successfully retrieved message from topic', {
+        topic,
+        partition: message.partition,
+        offset: message.offset
+      });
+
+      return message;
+
+    } catch (error) {
+      this.logger.error('Error retrieving message from topic', {
+        topic,
+        error: error.message
+      });
+      throw error;
+    } finally {
+      // Always disconnect the dedicated consumer
+      try {
+        await dedicatedConsumer.disconnect();
+        this.logger.debug('Dedicated consumer disconnected', { topic });
+      } catch (disconnectError) {
+        this.logger.warn('Failed to disconnect dedicated consumer', {
+          topic,
+          error: disconnectError.message
+        });
+      }
+    }
+  }
+
+  /**
    * Disconnect producer, consumer, and admin client
    */
   async disconnect() {

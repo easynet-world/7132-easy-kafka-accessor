@@ -255,6 +255,252 @@ describe('KafkaAccessor', () => {
     });
   });
 
+  describe('getMessageFromTopic', () => {
+    let mockDedicatedConsumer;
+    let mockDedicatedKafka;
+
+    beforeEach(() => {
+      mockDedicatedConsumer = {
+        connect: jest.fn().mockResolvedValue(),
+        disconnect: jest.fn().mockResolvedValue(),
+        subscribe: jest.fn().mockResolvedValue(),
+        run: jest.fn().mockResolvedValue()
+      };
+
+      mockDedicatedKafka = {
+        consumer: jest.fn().mockReturnValue(mockDedicatedConsumer)
+      };
+
+      // Mock the kafka instance for the new method
+      accessor.kafka = mockDedicatedKafka;
+    });
+
+    it('should create a dedicated consumer and retrieve a message', async () => {
+      const mockMessage = {
+        topic: 'test-topic',
+        partition: 0,
+        message: {
+          offset: '123',
+          key: 'test-key',
+          value: Buffer.from('{"message": "test"}'),
+          timestamp: Date.now(),
+          headers: {}
+        }
+      };
+
+      // Mock the consumer.run to immediately call eachMessage
+      mockDedicatedConsumer.run.mockImplementation(({ eachMessage }) => {
+        // Call eachMessage immediately to simulate message arrival
+        eachMessage(mockMessage);
+        return Promise.resolve();
+      });
+
+      const message = await accessor.getMessageFromTopic('test-topic');
+
+      expect(mockDedicatedKafka.consumer).toHaveBeenCalledWith({
+        groupId: expect.stringMatching(/^test-client-\d+$/),
+        sessionTimeout: 30000,
+        heartbeatInterval: 3000,
+        maxBytesPerPartition: 1048576
+      });
+
+      expect(mockDedicatedConsumer.connect).toHaveBeenCalled();
+      expect(mockDedicatedConsumer.subscribe).toHaveBeenCalledWith({
+        topic: 'test-topic',
+        fromBeginning: false
+      });
+      expect(mockDedicatedConsumer.run).toHaveBeenCalled();
+      expect(mockDedicatedConsumer.disconnect).toHaveBeenCalled();
+
+      expect(message).toEqual({
+        topic: 'test-topic',
+        partition: 0,
+        offset: '123',
+        key: 'test-key',
+        value: { message: 'test' },
+        timestamp: mockMessage.message.timestamp,
+        headers: {}
+      });
+    });
+
+    it('should use custom group ID when provided', async () => {
+      const mockMessage = {
+        topic: 'test-topic',
+        partition: 0,
+        message: {
+          offset: '123',
+          key: null,
+          value: Buffer.from('{"message": "test"}'),
+          timestamp: Date.now(),
+          headers: {}
+        }
+      };
+
+      mockDedicatedConsumer.run.mockImplementation(({ eachMessage }) => {
+        eachMessage(mockMessage);
+        return Promise.resolve();
+      });
+
+      await accessor.getMessageFromTopic('test-topic', { groupId: 'custom-group' });
+
+      expect(mockDedicatedKafka.consumer).toHaveBeenCalledWith({
+        groupId: expect.stringMatching(/^custom-group-\d+$/),
+        sessionTimeout: 30000,
+        heartbeatInterval: 3000,
+        maxBytesPerPartition: 1048576
+      });
+    });
+
+    it('should handle timeout correctly', async () => {
+      // Mock the consumer.run to not call eachMessage (simulating no messages)
+      mockDedicatedConsumer.run.mockResolvedValue();
+
+      // Mock setTimeout to immediately trigger timeout for our test
+      const originalSetTimeout = global.setTimeout;
+      global.setTimeout = jest.fn((callback, delay) => {
+        if (delay === 100) {
+          // For our timeout test, immediately call the callback
+          callback();
+        }
+        return originalSetTimeout(callback, delay);
+      });
+
+      try {
+        const timeout = 100;
+        
+        await expect(
+          accessor.getMessageFromTopic('test-topic', { timeout })
+        ).rejects.toThrow('Timeout waiting for message from topic: test-topic');
+
+        expect(mockDedicatedConsumer.disconnect).toHaveBeenCalled();
+      } finally {
+        // Restore original setTimeout
+        global.setTimeout = originalSetTimeout;
+      }
+    });
+
+    it('should handle message parsing errors', async () => {
+      const mockMessage = {
+        topic: 'test-topic',
+        partition: 0,
+        message: {
+          offset: '123',
+          key: null,
+          value: Buffer.from('invalid-json'), // Invalid JSON
+          timestamp: Date.now(),
+          headers: {}
+        }
+      };
+
+      mockDedicatedConsumer.run.mockImplementation(({ eachMessage }) => {
+        eachMessage(mockMessage);
+        return Promise.resolve();
+      });
+
+      await expect(
+        accessor.getMessageFromTopic('test-topic')
+      ).rejects.toThrow('Failed to parse message:');
+
+      expect(mockDedicatedConsumer.disconnect).toHaveBeenCalled();
+    });
+
+    it('should handle consumer connection errors', async () => {
+      mockDedicatedConsumer.connect.mockRejectedValue(new Error('Connection failed'));
+
+      await expect(
+        accessor.getMessageFromTopic('test-topic')
+      ).rejects.toThrow('Connection failed');
+
+      expect(mockDedicatedConsumer.disconnect).toHaveBeenCalled();
+    });
+
+    it('should handle consumer subscription errors', async () => {
+      mockDedicatedConsumer.subscribe.mockRejectedValue(new Error('Subscription failed'));
+
+      await expect(
+        accessor.getMessageFromTopic('test-topic')
+      ).rejects.toThrow('Subscription failed');
+
+      expect(mockDedicatedConsumer.disconnect).toHaveBeenCalled();
+    });
+
+    it('should handle consumer run errors', async () => {
+      mockDedicatedConsumer.run.mockRejectedValue(new Error('Run failed'));
+
+      await expect(
+        accessor.getMessageFromTopic('test-topic')
+      ).rejects.toThrow('Run failed');
+
+      expect(mockDedicatedConsumer.disconnect).toHaveBeenCalled();
+    });
+
+    it('should handle disconnect errors gracefully', async () => {
+      const mockMessage = {
+        topic: 'test-topic',
+        partition: 0,
+        message: {
+          offset: '123',
+          key: null,
+          value: Buffer.from('{"message": "test"}'),
+          timestamp: Date.now(),
+          headers: {}
+        }
+      };
+
+      mockDedicatedConsumer.run.mockImplementation(({ eachMessage }) => {
+        eachMessage(mockMessage);
+        return Promise.resolve();
+      });
+
+      // Mock disconnect to fail
+      mockDedicatedConsumer.disconnect.mockRejectedValue(new Error('Disconnect failed'));
+
+      const message = await accessor.getMessageFromTopic('test-topic');
+
+      // Should still return the message even if disconnect fails
+      expect(message).toBeDefined();
+      expect(mockDedicatedConsumer.disconnect).toHaveBeenCalled();
+    });
+
+    it('should prevent multiple message processing', async () => {
+      const mockMessage1 = {
+        topic: 'test-topic',
+        partition: 0,
+        message: {
+          offset: '123',
+          key: null,
+          value: Buffer.from('{"message": "first"}'),
+          timestamp: Date.now(),
+          headers: {}
+        }
+      };
+
+      const mockMessage2 = {
+        topic: 'test-topic',
+        partition: 0,
+        message: {
+          offset: '124',
+          key: null,
+          value: Buffer.from('{"message": "second"}'),
+          timestamp: Date.now(),
+          headers: {}
+        }
+      };
+
+      mockDedicatedConsumer.run.mockImplementation(({ eachMessage }) => {
+        // Call eachMessage multiple times - only first should be processed
+        eachMessage(mockMessage1);
+        eachMessage(mockMessage2); // This should be ignored
+        return Promise.resolve();
+      });
+
+      const message = await accessor.getMessageFromTopic('test-topic');
+
+      // Should only process the first message
+      expect(message.value.message).toBe('first');
+    });
+  });
+
   describe('disconnect', () => {
     it('should disconnect all clients', async () => {
       await accessor.initProducer();
