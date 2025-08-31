@@ -205,6 +205,11 @@ class KafkaAccessor {
 
       this.logger.info(`Auto-subscribing to ${availableTopics.length} topics with processors:`, availableTopics);
 
+      // Ensure consumer is initialized before subscribing
+      if (!this.consumer) {
+        await this.initConsumer();
+      }
+
       // Subscribe to all topics at once
       await this.consumer.subscribe({
         topics: availableTopics,

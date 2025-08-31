@@ -37,6 +37,19 @@ class KafkaTopicProcessor {
   }
 
   /**
+   * Safe JSON stringify that handles circular references
+   * @param {*} obj - Object to stringify
+   * @returns {string} JSON string or fallback
+   */
+  safeStringify(obj) {
+    try {
+      return JSON.stringify(obj, null, 2);
+    } catch (error) {
+      return '[Circular or non-serializable object]';
+    }
+  }
+
+  /**
    * Process a message from a Kafka topic
    * @param {string} topic - The topic name
    * @param {Object} message - The message content
@@ -45,29 +58,35 @@ class KafkaTopicProcessor {
    */
   async process(topic, message, metadata) {
     try {
-      this.logger.debug('Received message for topic', { 
-        topic, 
-        message: JSON.stringify(message, null, 2) 
-      });
-      this.logger.debug('Message metadata', { metadata: JSON.stringify(metadata, null, 2) });
+      if (this.logger) {
+        this.logger.debug('Received message for topic', { 
+          topic, 
+          message: this.safeStringify(message)
+        });
+        this.logger.debug('Message metadata', { metadata: this.safeStringify(metadata) });
+      }
       
       // Call the actual message processing logic
       const result = await this.processMessage(message, metadata);
       
       // Log success
-      this.logger.debug('Message processed successfully', { 
-        topic, 
-        result: JSON.stringify(result, null, 2) 
-      });
+      if (this.logger) {
+        this.logger.debug('Message processed successfully', { 
+          topic, 
+          result: this.safeStringify(result)
+        });
+      }
       
       // Fix: Pass the message and spread the result as additional data
       return this.createSuccessResult(result.message || 'Message processed successfully', result);
     } catch (error) {
       // Log error
-      this.logger.error('Error processing message for topic', { 
-        topic, 
-        error: error.message 
-      });
+      if (this.logger) {
+        this.logger.error('Error processing message for topic', { 
+          topic, 
+          error: error.message 
+        });
+      }
       
       return this.createErrorResult(error.message);
     }

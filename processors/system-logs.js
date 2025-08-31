@@ -18,7 +18,7 @@ class SystemLogsProcessor extends KafkaTopicProcessor {
       topic: metadata.topic,
       partition: metadata.partition,
       offset: metadata.offset,
-      message: JSON.stringify(message, null, 2)
+      message: this.safeStringify(message)
     });
     
     // Return success result

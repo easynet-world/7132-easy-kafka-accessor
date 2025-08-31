@@ -34,6 +34,19 @@ describe('Processors', () => {
       expect(processor).toBeInstanceOf(KafkaTopicProcessor);
     });
 
+    it('should have access to safeStringify method', () => {
+      expect(typeof processor.safeStringify).toBe('function');
+      
+      // Test that it works correctly
+      const testObj = { test: 'value' };
+      expect(processor.safeStringify(testObj)).toBe('{\n  "test": "value"\n}');
+      
+      // Test circular reference handling
+      const circularObj = {};
+      circularObj.self = circularObj;
+      expect(processor.safeStringify(circularObj)).toBe('[Circular or non-serializable object]');
+    });
+
     it('should have the correct topic name', () => {
       expect(processor.topic).toBe('system-logs');
     });
@@ -85,7 +98,7 @@ describe('Processors', () => {
         topic: 'system-logs',
         partition: 1,
         offset: 456,
-        message: JSON.stringify(message, null, 2)
+        message: processor.safeStringify(message)
       });
     });
 
@@ -127,7 +140,7 @@ describe('Processors', () => {
         topic: 'system-logs',
         partition: undefined,
         offset: undefined,
-        message: JSON.stringify(complexMessage, null, 2)
+        message: processor.safeStringify(complexMessage)
       });
     });
 
@@ -248,6 +261,9 @@ describe('Processors', () => {
     it('should handle processing errors gracefully', async () => {
       const processor = new SystemLogsProcessor();
       
+      // Store original logger methods
+      const originalInfo = processor.logger.info;
+      
       // Mock the logger to throw an error
       processor.logger.info = jest.fn().mockImplementation(() => {
         throw new Error('Logger error');
@@ -260,6 +276,9 @@ describe('Processors', () => {
 
       expect(result.status).toBe('error');
       expect(result.message).toBe('Logger error');
+      
+      // Restore original logger methods
+      processor.logger.info = originalInfo;
     });
 
     it('should validate messages correctly', () => {
@@ -370,6 +389,9 @@ describe('Processors', () => {
     it('should handle logger failures gracefully', async () => {
       const processor = new SystemLogsProcessor();
       
+      // Store original logger methods
+      const originalInfo = processor.logger.info;
+      
       // Mock logger methods to fail
       processor.logger.info = jest.fn().mockImplementation(() => {
         throw new Error('Logger failure');
@@ -383,6 +405,9 @@ describe('Processors', () => {
       
       expect(result.status).toBe('error');
       expect(result.message).toBe('Logger failure');
+      
+      // Restore original logger methods
+      processor.logger.info = originalInfo;
     });
 
     it('should handle missing logger gracefully', async () => {
