@@ -5,7 +5,7 @@
 
 # One function = Kafka consumer + producer + auto-discovery
 
-Automatically discover Kafka topics and process messages with zero configuration.
+Automatically discover Kafka topics and process messages with zero configuration. **Supports keep waiting until getting a message from the queue** for reliable message processing.
 
 ## 🚀 Quick Start
 
@@ -31,7 +31,7 @@ module.exports = UserEventsProcessor;
 
 ### 3. Start
 ```bash
-KAFKA_BROKERS=kafka:9092 npm start
+npm start
 ```
 
 **Done!** System automatically discovers `user-events.js` → subscribes to `user-events` topic → starts processing messages.
@@ -49,6 +49,7 @@ processors/logs.js        → Topic: "logs"
 - No manual topic setup
 - No manual subscription  
 - Just create processor files
+- **Automatic message waiting** - keeps listening until messages arrive
 
 ## 🔧 Usage
 
@@ -62,6 +63,9 @@ await kafka.startConsumer();
 
 // Send messages
 await kafka.sendMessage('user-events', { userId: 123, action: 'login' });
+
+// Get message from specific topic with keep waiting
+const message = await kafka.getMessageFromTopic('user-events');
 ```
 
 ## 📁 Processor Rules
@@ -72,11 +76,14 @@ await kafka.sendMessage('user-events', { userId: 123, action: 'login' });
 
 ## ⚙️ Config
 
+Create a `.env` file in your project root:
 ```bash
 KAFKA_BROKERS=kafka:9092
 KAFKA_CLIENT_ID=my-app
 KAFKA_GROUP_ID=my-group
 ```
+
+**Note**: Configuration is automatically loaded from `.env` file - no need to set environment variables in command line.
 
 ## 🔧 Troubleshooting
 
