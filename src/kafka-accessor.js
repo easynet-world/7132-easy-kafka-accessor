@@ -54,12 +54,24 @@ class KafkaAccessor {
     try {
       if (!this.admin) {
         this.admin = this.kafka.admin();
-        await this.admin.connect();
-        this.logger.debug('Kafka admin client initialized successfully');
+        this.logger.debug('Admin client created, connecting...');
       }
+
+      // Check if already connected
+      if (this.admin.isConnected && this.admin.isConnected()) {
+        this.logger.debug('Admin client already connected');
+        return this.admin;
+      }
+
+      // Connect to admin client
+      await this.admin.connect();
+      this.logger.debug('Kafka admin client initialized successfully');
+      
       return this.admin;
     } catch (error) {
-      this.logger.error('Failed to initialize admin client', { error: error.message });
+      this.logger.error('Failed to initialize admin client', { error: error.message, stack: error.stack });
+      // Reset admin client on failure
+      this.admin = null;
       throw error;
     }
   }
@@ -71,15 +83,34 @@ class KafkaAccessor {
    */
   async topicExists(topic) {
     try {
+      // Validate topic parameter
+      if (!topic || typeof topic !== 'string') {
+        this.logger.warn('Invalid topic parameter for topicExists', { topic });
+        return false;
+      }
+
       // Auto-initialize admin if not already initialized
       if (!this.admin) {
         await this.initAdmin();
       }
+
+      // Ensure admin client is connected
+      if (this.admin.isConnected && !this.admin.isConnected()) {
+        this.logger.warn('Admin client disconnected, reconnecting...');
+        await this.admin.connect();
+      }
       
       const topics = await this.admin.listTopics();
+      
+      // Validate that topics is an array
+      if (!Array.isArray(topics)) {
+        this.logger.error('Admin listTopics returned non-array result', { topics, type: typeof topics });
+        return false;
+      }
+      
       return topics.includes(topic);
     } catch (error) {
-      this.logger.error('Failed to check topic existence', { topic, error: error.message });
+      this.logger.error('Failed to check topic existence', { topic, error: error.message, stack: error.stack });
       return false;
     }
   }
@@ -91,9 +122,20 @@ class KafkaAccessor {
    */
   async createTopic(topic, options = {}) {
     try {
+      // Validate topic parameter
+      if (!topic || typeof topic !== 'string') {
+        throw new Error('Topic name must be a valid string');
+      }
+
       // Auto-initialize admin if not already initialized
       if (!this.admin) {
         await this.initAdmin();
+      }
+
+      // Ensure admin client is connected
+      if (this.admin.isConnected && !this.admin.isConnected()) {
+        this.logger.warn('Admin client disconnected, reconnecting...');
+        await this.admin.connect();
       }
 
       const topicConfig = {
@@ -103,10 +145,20 @@ class KafkaAccessor {
         configEntries: options.configEntries || []
       };
 
-      await this.admin.createTopics([topicConfig]);
-      this.logger.info('Topic created successfully', { topic, config: topicConfig });
+      // Validate topicConfig before calling createTopics
+      if (!topicConfig.topic || typeof topicConfig.topic !== 'string') {
+        throw new Error('Invalid topic configuration: topic must be a valid string');
+      }
+
+      this.logger.debug('Creating topic with config', { topicConfig });
+      
+      // Ensure we pass an array to createTopics
+      const result = await this.admin.createTopics([topicConfig]);
+      
+      this.logger.info('Topic created successfully', { topic, config: topicConfig, result });
+      return result;
     } catch (error) {
-      this.logger.error('Failed to create topic', { topic, error: error.message });
+      this.logger.error('Failed to create topic', { topic, error: error.message, stack: error.stack });
       throw error;
     }
   }

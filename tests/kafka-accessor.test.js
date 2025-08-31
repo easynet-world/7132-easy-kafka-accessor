@@ -18,7 +18,8 @@ const mockAdmin = {
   connect: jest.fn().mockResolvedValue(),
   disconnect: jest.fn().mockResolvedValue(),
   listTopics: jest.fn().mockResolvedValue(['existing-topic']),
-  createTopics: jest.fn().mockResolvedValue()
+  createTopics: jest.fn().mockResolvedValue(),
+  isConnected: jest.fn().mockReturnValue(true)
 };
 
 const mockKafka = {
@@ -70,6 +71,9 @@ describe('KafkaAccessor', () => {
       brokers: 'localhost:9092',
       clientId: 'test-client'
     });
+    
+    // Ensure the mock admin is properly set up
+    mockKafka.admin.mockReturnValue(mockAdmin);
   });
 
   afterEach(async () => {
@@ -130,6 +134,40 @@ describe('KafkaAccessor', () => {
       expect(mockKafka.admin).toHaveBeenCalledTimes(1);
     });
 
+    it('should handle admin client connection issues gracefully', async () => {
+      // Mock admin client to simulate connection failure
+      const mockAdmin = {
+        connect: jest.fn().mockRejectedValue(new Error('Connection failed'))
+      };
+      mockKafka.admin.mockReturnValue(mockAdmin);
+      
+      await expect(accessor.initAdmin()).rejects.toThrow('Connection failed');
+      expect(accessor.admin).toBeNull();
+      
+      // Reset the mock to prevent affecting other tests
+      mockKafka.admin.mockReturnValue({
+        connect: jest.fn().mockResolvedValue(),
+        disconnect: jest.fn().mockResolvedValue(),
+        listTopics: jest.fn().mockResolvedValue(['existing-topic']),
+        createTopics: jest.fn().mockResolvedValue()
+      });
+    });
+
+    it('should check connection status before reconnecting', async () => {
+      await accessor.initAdmin();
+      
+      // Mock isConnected method
+      accessor.admin.isConnected = jest.fn().mockReturnValue(true);
+      
+      await accessor.initAdmin();
+      
+      // Should not call connect again if already connected
+      expect(accessor.admin.isConnected).toHaveBeenCalled();
+      
+      // Reset the mock to prevent affecting other tests
+      accessor.admin.isConnected = undefined;
+    });
+
     it('should check if topic exists', async () => {
       await accessor.initAdmin();
       
@@ -148,6 +186,53 @@ describe('KafkaAccessor', () => {
       expect(exists).toBe(false);
     });
 
+    it('should handle invalid topic parameter gracefully', async () => {
+      await accessor.initAdmin();
+      
+      expect(await accessor.topicExists('')).toBe(false);
+      expect(await accessor.topicExists(null)).toBe(false);
+      expect(await accessor.topicExists(undefined)).toBe(false);
+      expect(await accessor.topicExists(123)).toBe(false);
+    });
+
+    it('should handle admin client connection issues gracefully', async () => {
+      // Mock admin client to simulate connection issues
+      const mockAdmin = {
+        isConnected: jest.fn().mockReturnValue(false),
+        connect: jest.fn().mockResolvedValue(),
+        listTopics: jest.fn().mockResolvedValue(['test-topic'])
+      };
+      
+      accessor.admin = mockAdmin;
+      
+      const exists = await accessor.topicExists('test-topic');
+      
+      expect(mockAdmin.connect).toHaveBeenCalled();
+      expect(exists).toBe(true);
+      
+      // Reset accessor.admin to prevent affecting other tests
+      accessor.admin = null;
+    });
+
+    it('should handle non-array result from listTopics gracefully', async () => {
+      await accessor.initAdmin();
+      
+      // Mock admin to return invalid result
+      const mockAdmin = {
+        isConnected: jest.fn().mockReturnValue(true),
+        listTopics: jest.fn().mockResolvedValue(null)
+      };
+      
+      accessor.admin = mockAdmin;
+      
+      const exists = await accessor.topicExists('test-topic');
+      
+      expect(exists).toBe(false);
+      
+      // Reset accessor.admin to prevent affecting other tests
+      accessor.admin = null;
+    });
+
     it('should create topic successfully', async () => {
       await accessor.initAdmin();
       
@@ -160,6 +245,54 @@ describe('KafkaAccessor', () => {
         replicationFactor: 2,
         configEntries: []
       }]);
+    });
+
+    it('should handle invalid topic parameter gracefully', async () => {
+      await accessor.initAdmin();
+      
+      await expect(accessor.createTopic('', {})).rejects.toThrow('Topic name must be a valid string');
+      await expect(accessor.createTopic(null, {})).rejects.toThrow('Topic name must be a valid string');
+      await expect(accessor.createTopic(undefined, {})).rejects.toThrow('Topic name must be a valid string');
+      await expect(accessor.createTopic(123, {})).rejects.toThrow('Topic name must be a valid string');
+    });
+
+    it('should handle admin client connection issues gracefully', async () => {
+      // Mock admin client to simulate connection issues
+      const mockAdmin = {
+        isConnected: jest.fn().mockReturnValue(false),
+        connect: jest.fn().mockResolvedValue(),
+        createTopics: jest.fn().mockResolvedValue()
+      };
+      
+      accessor.admin = mockAdmin;
+      
+      await accessor.createTopic('test-topic');
+      
+      expect(mockAdmin.connect).toHaveBeenCalled();
+      expect(mockAdmin.createTopics).toHaveBeenCalled();
+      
+      // Reset accessor.admin to prevent affecting other tests
+      accessor.admin = null;
+    });
+
+    it('should validate topic configuration before creation', async () => {
+      await accessor.initAdmin();
+      
+      // This should work normally
+      await expect(accessor.createTopic('valid-topic')).resolves.not.toThrow();
+      
+      // Mock admin to return invalid result
+      const mockAdmin = {
+        isConnected: jest.fn().mockReturnValue(true),
+        createTopics: jest.fn().mockRejectedValue(new Error('Invalid topics array undefined'))
+      };
+      
+      accessor.admin = mockAdmin;
+      
+      await expect(accessor.createTopic('test-topic')).rejects.toThrow('Invalid topics array undefined');
+      
+      // Reset accessor.admin to prevent affecting other tests
+      accessor.admin = null;
     });
 
     it('should ensure topic exists without creating if already exists', async () => {
