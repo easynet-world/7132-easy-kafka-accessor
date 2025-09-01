@@ -70,4 +70,21 @@ describe('App Startup', () => {
     // Verify the simplified config source logic
     expect(appContent).toMatch(/const configSource = process\.env\.KAFKA_BROKERS \? 'env' : 'default'/);
   });
+
+  test('should support CONFIG_FOLDER environment variable', () => {
+    const fs = require('fs');
+    const appContent = fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8');
+    
+    // Verify that CONFIG_FOLDER is supported
+    expect(appContent).toMatch(/CONFIG_FOLDER.*env var/);
+    
+    // Verify that path module is required
+    expect(appContent).toMatch(/const path = require\('path'\)/);
+    
+    // Verify that dotenv config includes path option
+    expect(appContent).toMatch(/path:\s*envPath/);
+    
+    // Verify that config folder is determined correctly
+    expect(appContent).toMatch(/const configFolder = process\.env\.CONFIG_FOLDER \|\| __dirname/);
+  });
 });

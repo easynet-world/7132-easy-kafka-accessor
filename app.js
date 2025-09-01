@@ -7,7 +7,17 @@
  */
 
 // Load environment variables from .env file, but environment parameters take higher priority
+const path = require('path');
+
+// Determine the config folder - default to project root, can be overridden by CONFIG_FOLDER env var
+const configFolder = process.env.CONFIG_FOLDER || __dirname;
+const envPath = path.join(configFolder, '.env');
+
+console.log(`📁 Config folder: ${configFolder}`);
+console.log(`📄 Loading .env from: ${envPath}`);
+
 require('dotenv').config({
+  path: envPath,
   override: false // Don't override existing environment variables
 });
 const KafkaAccessor = require('./src/kafka-accessor');
@@ -21,8 +31,10 @@ async function main() {
     
     // Show configuration source information
     const configSource = process.env.KAFKA_BROKERS ? 'env' : 'default';
+    const configLocation = process.env.CONFIG_FOLDER ? 'custom' : 'root';
     
     console.log(`📡 Brokers: ${process.env.KAFKA_BROKERS || 'localhost:9092'} (${configSource})`);
+    console.log(`📁 Config location: ${configLocation} (${configFolder})`);
     console.log(`🎯 Processors Dir: ${process.env.PROCESSORS_DIR || './processors'}`);
     console.log(`🔧 Client ID: ${process.env.KAFKA_CLIENT_ID || 'kafka-accessor'}`);
     console.log(`👥 Group ID: ${process.env.KAFKA_GROUP_ID || 'kafka-accessor-group'}`);
