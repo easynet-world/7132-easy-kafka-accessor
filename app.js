@@ -6,7 +6,10 @@
  * Features: Auto-discovery, health monitoring, graceful shutdown
  */
 
-require('dotenv').config();
+// Load environment variables from .env file, but environment parameters take higher priority
+require('dotenv').config({
+  override: false // Don't override existing environment variables
+});
 const KafkaAccessor = require('./src/kafka-accessor');
 
 let kafka = null;
@@ -15,7 +18,11 @@ let shutdownInProgress = false;
 async function main() {
   try {
     console.log('🚀 Starting Kafka Data Accessor...');
-    console.log(`📡 Brokers: ${process.env.KAFKA_BROKERS || 'localhost:9092'}`);
+    
+    // Show configuration source information
+    const configSource = process.env.KAFKA_BROKERS ? 'env' : 'default';
+    
+    console.log(`📡 Brokers: ${process.env.KAFKA_BROKERS || 'localhost:9092'} (${configSource})`);
     console.log(`🎯 Processors Dir: ${process.env.PROCESSORS_DIR || './processors'}`);
     console.log(`🔧 Client ID: ${process.env.KAFKA_CLIENT_ID || 'kafka-accessor'}`);
     console.log(`👥 Group ID: ${process.env.KAFKA_GROUP_ID || 'kafka-accessor-group'}`);

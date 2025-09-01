@@ -55,4 +55,19 @@ describe('App Startup', () => {
     // Verify that stop.sh exists
     expect(fs.existsSync(path.join(__dirname, '../scripts/stop.sh'))).toBe(true);
   });
+
+  test('should load environment variables with correct priority', () => {
+    // Test that dotenv is configured with override: false
+    const fs = require('fs');
+    const appContent = fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8');
+    
+    // Verify that dotenv is configured with override: false
+    expect(appContent).toMatch(/require\('dotenv'\)\.config\(\{[\s\S]*override:\s*false[\s\S]*\}\)/);
+    
+    // Verify the comment explains the priority
+    expect(appContent).toMatch(/environment parameters take higher priority/);
+    
+    // Verify the simplified config source logic
+    expect(appContent).toMatch(/const configSource = process\.env\.KAFKA_BROKERS \? 'env' : 'default'/);
+  });
 });
